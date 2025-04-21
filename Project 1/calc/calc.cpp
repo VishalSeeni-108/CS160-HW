@@ -4,6 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stack>
+#include <iostream>
 
 using namespace std;
 
@@ -106,7 +107,8 @@ class scanner_t {
 	//be cut out once you get the scanner up and going.
 	token_type bogo_token;
 
-	token_type prev_token;
+	token_type cached_token;
+	bool cache_valid; 
 	int num_lines = 0; 
 
 	//error message and exit if weird character
@@ -125,66 +127,66 @@ token_type scanner_t::next_token()
 	// if ( bogo_token!=T_plus && bogo_token!=T_eof ) return T_plus;
 	// else return bogo_token;
 
-	char input = getchar(); 
-	switch(input)
+	if(!cache_valid) //Update cache
 	{
-		case '+': 
-			prev_token = T_plus; 
-			return T_plus; 
-		break;
-		case '-': 
-			prev_token = T_minus; 
-			return T_minus; 
-		break; 
-		case '*': 
-			prev_token = T_times; 
-			return T_times; 
-		break; 
-		case '.': 
-			prev_token = T_period; 
-			return T_period; 
-		break; 
-		case '|': 
-			prev_token = T_bar; 
-			return T_bar; 
-		break; 
-		case '(': 
-			prev_token = T_openparen; 
-			return T_openparen; 
-		break; 
-		case ')':
-			prev_token = T_closeparen; 
-			return T_closeparen; 
-		break; 
-		case '0': 
-		case '1': 
-		case '2': 
-		case '3': 
-		case '4': 
-		case '5': 
-		case '6': 
-		case '7': 
-		case '8': 
-		case '9': 
-				  if(prev_token != T_num)
-				  {
-					prev_token = T_num; 
-					return T_num; 
-				  } 
-				  else
-				  {
-					return next_token(); 
-				  }
-		break; 
-		case '\n': 
-				  num_lines++; 
-				  return next_token(); 
-		case ' ': 
-				  return next_token(); 
-		default: 
-			return T_eof; //double check this
-		//TODO - check for T_num
+		char input = cin.get(); 
+		while(input == '\n' || input == ' ') //ignore whitespace
+		{
+			if(input == '\n')
+			{
+				num_lines++; 
+			}
+			input = cin.get(); 
+		}
+
+		switch(input)
+		{
+			case '+': 
+				cached_token = T_plus; 
+			break;
+			case '-': 
+				cached_token = T_minus; 
+			break; 
+			case '*': 
+				cached_token = T_times; 
+			break; 
+			case '.': 
+				cached_token = T_period; 
+			break; 
+			case '|': 
+				cached_token = T_bar; 
+			break; 
+			case '(': 
+				cached_token = T_openparen; 
+			break; 
+			case ')':
+				cached_token = T_closeparen; 
+			break; 
+			case '0': 
+			case '1': 
+			case '2': 
+			case '3': 
+			case '4': 
+			case '5': 
+			case '6': 
+			case '7': 
+			case '8': 
+			case '9': 
+					  while(isdigit(cin.peek()))
+					  {
+						cin.get(); 
+					  }
+					  cached_token = T_num; 
+			break; 
+			default:
+				cached_token = T_eof; 
+			break; 
+		}
+
+		cache_valid = true; 
 	}
+
+	return cached_token;
 }
 
 void scanner_t::eat_token(token_type c)
@@ -192,21 +194,22 @@ void scanner_t::eat_token(token_type c)
 	//if we are supposed to eat token c, and it does not match
 	//what we are supposed to be reading from file, then it is a 
 	//mismatch error ( call - mismatch_error(c) )
+	cache_valid = false; 
 
-	//WRITEME: cut this bogus stuff out and implement eat_token
-	if ( rand()%10 < 8 ) bogo_token = T_plus;
-	else bogo_token = T_eof;
-
+	if(cached_token != c)
+	{
+		mismatch_error(c); 
+	}
 }
 
 scanner_t::scanner_t()
 {
-	//WRITEME
+	cache_valid = false; 
 }
 
 int scanner_t::get_line()
 {
-	//WRITEME
+	return num_lines; 
 }
 
 void scanner_t::scan_error (char x)
@@ -462,6 +465,7 @@ int main()
 	while(currToken != T_eof)
 	{
 		printf(token_to_string(currToken)); 
+		scanner.eat_token(currToken); 
 		currToken = scanner.next_token(); 
 	}
 	return 0;
