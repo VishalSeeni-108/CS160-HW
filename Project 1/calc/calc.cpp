@@ -55,7 +55,12 @@ char* token_to_string(token_type c) {
 typedef enum {
 	epsilon = 100,
 	NT_List,
-	NT_Expr
+	NT_Expr, 
+	NT_List_Prime, 
+	NT_Expr_Prime, 
+	NT_Term, 
+	NT_Term_Prime,
+	NT_Fact
 	//WRITEME: add symbolic names for you non-terminals here
 } nonterm_type;
 
@@ -70,7 +75,13 @@ char* nonterm_to_string(nonterm_type nt)
 	switch( nt ) {
 		  case epsilon: strncpy(buffer,"e",MAX_SYMBOL_NAME_SIZE); break;
 		  case NT_List: strncpy(buffer,"List",MAX_SYMBOL_NAME_SIZE); break;
-		  //WRITEME: add the other nonterminals you need here		
+		  //WRITEME: add the other nonterminals you need here	
+		  case NT_Expr: strncpy(buffer,"Expr",MAX_SYMBOL_NAME_SIZE); break;	
+		  case NT_List_Prime: strncpy(buffer,"List'",MAX_SYMBOL_NAME_SIZE); break;
+		  case NT_Expr_Prime: strncpy(buffer,"Expr'",MAX_SYMBOL_NAME_SIZE); break;
+		  case NT_Term: strncpy(buffer,"Term",MAX_SYMBOL_NAME_SIZE); break;
+		  case NT_Term_Prime: strncpy(buffer,"Term'",MAX_SYMBOL_NAME_SIZE); break;
+		  case NT_Fact: strncpy(buffer,"Fact'",MAX_SYMBOL_NAME_SIZE); break;
 		  default: strncpy(buffer,"unknown_nonterm",MAX_SYMBOL_NAME_SIZE); break;
 		}
 	return buffer;
@@ -109,7 +120,7 @@ class scanner_t {
 
 	token_type cached_token;
 	bool cache_valid; 
-	int num_lines = 0; 
+	int num_lines = 1; 
 
 	//error message and exit if weird character
 	void scan_error(char x);
@@ -378,6 +389,12 @@ class parser_t {
 	void List();
 	//WRITEME: fill this out with the rest of the 
 	//recursive decent stuff (more methods)
+	void List_Prime(); 
+	void Expr(); 
+	void Expr_Prime(); 
+	void Term(); 
+	void Term_Prime(); 
+	void Fact(); 
 
   public:	
 	void parse();
@@ -426,47 +443,150 @@ void parser_t::parse()
 //Here is an example
 void parser_t::List()
 {
-	//push this non-terminal onto the parse tree.
-	//the parsetree class is just for drawing the finished
-	//parse tree, and should in should have no effect the actual
-	//parsing of the data
-	parsetree.push(NT_List);
+	parsetree.push(NT_List); 
+	Expr(); 
+	eat_token(T_period); 
+	List_Prime();
+	parsetree.pop(); 
+	// //push this non-terminal onto the parse tree.
+	// //the parsetree class is just for drawing the finished
+	// //parse tree, and should in should have no effect the actual
+	// //parsing of the data
+	// // parsetree.push(NT_List);
 
-	switch( scanner.next_token() ) 
-	{
-		case T_plus:
-			eat_token(T_plus);
-			List();
-			break;
-		case T_eof:
-			parsetree.drawepsilon();
-			break;
-		default:
-			syntax_error(NT_List);
-			break;
-	}
+	// switch( scanner.next_token() ) 
+	// {
+	// 	case T_plus:
+	// 		eat_token(T_plus);
+	// 		List();
+	// 		break;
+	// 	case T_eof:
+	// 		parsetree.drawepsilon();
+	// 		break;
+	// 	default:
+	// 		syntax_error(NT_List);
+	// 		break;
+	// }
 
-	//now that we are done with List, we can pop it from the data
-	//stucture that is tracking it for drawing the parse tree
-	parsetree.pop();
+	// //now that we are done with List, we can pop it from the data
+	// //stucture that is tracking it for drawing the parse tree
+	// parsetree.pop();
 }
 
 //WRITEME: you will need to put the rest of the procedures here
+void parser_t::List_Prime()
+{
+	parsetree.push(NT_List_Prime); 
+	token_type next = scanner.next_token(); 
+	if(next == T_num || next == T_minus || next == T_openparen | next == T_bar)
+	{
+		Expr(); 
+		eat_token(T_period); 
+		List_Prime(); 
+	}
+	else
+	{
+		parsetree.drawepsilon(); 
+	}
+	parsetree.pop(); 
+}
 
+void parser_t::Expr()
+{
+	parsetree.push(NT_Expr); 
+	Term(); 
+	Expr_Prime(); 
+	parsetree.pop(); 
+}
+
+void parser_t::Expr_Prime()
+{
+	parsetree.push(NT_Expr_Prime); 
+	switch(scanner.next_token())
+	{
+		case T_plus: 
+			eat_token(T_plus); 
+			Term(); 
+			Expr_Prime(); 
+			break; 
+		case T_minus: 
+			eat_token(T_minus); 
+			Term(); 
+			Expr_Prime(); 
+			break;
+		default: 
+			parsetree.drawepsilon(); 
+			break; 
+	}
+	parsetree.pop(); 
+}
+
+void parser_t::Term()
+{
+	parsetree.push(NT_Term); 
+	Fact(); 
+	Term_Prime(); 
+	parsetree.pop(); 
+}
+
+void parser_t::Term_Prime()
+{
+	parsetree.push(NT_Term_Prime); 
+	switch(scanner.next_token())
+	{
+		case T_times: 
+			eat_token(T_times); 
+			Fact(); 
+			Term_Prime();
+			break; 
+		default: 
+			parsetree.drawepsilon(); 
+			break; 
+	}
+	parsetree.pop(); 
+}
+
+void parser_t::Fact()
+{
+	parsetree.push(NT_Fact); 
+	switch(scanner.next_token())
+	{
+		case T_num: 
+			eat_token(T_num); 
+			break; 
+		case T_minus: 
+			eat_token(T_minus); 
+			Fact(); 
+			break; 
+		case T_openparen:
+			eat_token(T_openparen); 
+			Expr(); 
+			eat_token(T_closeparen); 
+			break; 
+		case T_bar:
+			eat_token(T_bar); 
+			Expr(); 
+			eat_token(T_bar); 
+			break; 
+		default: 
+			syntax_error(NT_Fact); 
+	}
+	parsetree.pop(); 
+}
 
 /*** Main ***********************************************/
 
 int main()
 {
-	// parser_t parser;
-	// parser.parse();
-	scanner_t scanner; 
-	token_type currToken = scanner.next_token(); 
-	while(currToken != T_eof)
-	{
-		printf(token_to_string(currToken)); 
-		scanner.eat_token(currToken); 
-		currToken = scanner.next_token(); 
-	}
+	parser_t parser;
+	parser.parse();
+	// scanner_t scanner; 
+	// token_type currToken = scanner.next_token(); 
+	// while(currToken != T_eof)
+	// {
+	// 	printf(token_to_string(currToken)); 
+	// 	scanner.eat_token(currToken); 
+	// 	currToken = scanner.next_token(); 
+	// }
 	return 0;
 }
