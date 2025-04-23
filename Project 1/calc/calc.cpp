@@ -81,7 +81,7 @@ char* nonterm_to_string(nonterm_type nt)
 		  case NT_Expr_Prime: strncpy(buffer,"Expr'",MAX_SYMBOL_NAME_SIZE); break;
 		  case NT_Term: strncpy(buffer,"Term",MAX_SYMBOL_NAME_SIZE); break;
 		  case NT_Term_Prime: strncpy(buffer,"Term'",MAX_SYMBOL_NAME_SIZE); break;
-		  case NT_Fact: strncpy(buffer,"Fact'",MAX_SYMBOL_NAME_SIZE); break;
+		  case NT_Fact: strncpy(buffer,"Fact",MAX_SYMBOL_NAME_SIZE); break;
 		  default: strncpy(buffer,"unknown_nonterm",MAX_SYMBOL_NAME_SIZE); break;
 		}
 	return buffer;
@@ -150,6 +150,12 @@ token_type scanner_t::next_token()
 			input = cin.get(); 
 		}
 
+		if(cin.eof())
+		{
+			cached_token = T_eof; 
+			return cached_token; 
+		}
+
 		switch(input)
 		{
 			case '+': 
@@ -190,7 +196,7 @@ token_type scanner_t::next_token()
 					  cached_token = T_num; 
 			break; 
 			default:
-				cached_token = T_eof; 
+				scan_error(input); 
 			break; 
 		}
 
@@ -234,7 +240,7 @@ void scanner_t::mismatch_error (token_type x)
 {
 	printf("syntax error: found %s ",token_to_string(next_token()) );
 	printf("expecting %s - line %d\n", token_to_string(x), get_line());
-	exit(1);
+	exit(2);
 }
 
 
@@ -421,7 +427,7 @@ void parser_t::syntax_error(nonterm_type nt)
 		token_to_string( scanner.next_token()),
 		nonterm_to_string(nt),
 		scanner.get_line() ); 
-	exit(1); 
+	exit(2); 
 }
 
 
@@ -478,7 +484,7 @@ void parser_t::List_Prime()
 {
 	parsetree.push(NT_List_Prime); 
 	token_type next = scanner.next_token(); 
-	if(next == T_num || next == T_minus || next == T_openparen | next == T_bar)
+	if(next == T_num || next == T_minus || next == T_openparen || next == T_bar)
 	{
 		Expr(); 
 		eat_token(T_period); 
@@ -486,6 +492,10 @@ void parser_t::List_Prime()
 	}
 	else
 	{
+		if(next != T_eof)
+		{
+			syntax_error(NT_List_Prime); 
+		}
 		parsetree.drawepsilon(); 
 	}
 	parsetree.pop(); 
@@ -502,7 +512,8 @@ void parser_t::Expr()
 void parser_t::Expr_Prime()
 {
 	parsetree.push(NT_Expr_Prime); 
-	switch(scanner.next_token())
+	token_type next = scanner.next_token(); 
+	switch(next)
 	{
 		case T_plus: 
 			eat_token(T_plus); 
@@ -515,7 +526,15 @@ void parser_t::Expr_Prime()
 			Expr_Prime(); 
 			break;
 		default: 
-			parsetree.drawepsilon(); 
+			if(next == T_period || next == T_closeparen || next == T_bar)
+			{
+				parsetree.drawepsilon();
+			}
+			else
+			{
+				syntax_error(NT_Expr_Prime); 
+			}
+			 
 			break; 
 	}
 	parsetree.pop(); 
@@ -532,7 +551,8 @@ void parser_t::Term()
 void parser_t::Term_Prime()
 {
 	parsetree.push(NT_Term_Prime); 
-	switch(scanner.next_token())
+	token_type next = scanner.next_token(); 
+	switch(next)
 	{
 		case T_times: 
 			eat_token(T_times); 
@@ -540,7 +560,14 @@ void parser_t::Term_Prime()
 			Term_Prime();
 			break; 
 		default: 
-			parsetree.drawepsilon(); 
+			if(next == T_period || next == T_closeparen || next == T_bar || next == T_plus || T_minus)
+			{
+				parsetree.drawepsilon(); 
+			}
+			else
+			{
+				syntax_error(NT_Term_Prime); 
+			}
 			break; 
 	}
 	parsetree.pop(); 
