@@ -16,6 +16,20 @@
  *  - Put all your precedence/associativity rules here
  */
 
+/*keywords*/
+ %token BOOLEAN
+ %token CHAR 
+ %token INTEGER
+ %token STRING 
+ %token INTPTR 
+ %token CHARPTR
+ %token IF
+ %token ELSE 
+ %token WHILE 
+ %token VAR 
+ %token PROCEDURE 
+ %token RETURN 
+
 %%
 
 /** WRITE ME:
@@ -25,6 +39,7 @@
 
 List    : List Expr '.' {printf("parsed expresion\n");}
         | Expr '.' {printf("parsed expresion\n");}
+        | BOOLEAN '.' {printf("Got a boolean!\n");}
         ;
 
 Expr    : Expr '+' Expr 

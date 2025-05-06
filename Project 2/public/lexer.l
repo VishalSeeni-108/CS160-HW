@@ -30,6 +30,20 @@
 [0-9][0-9]*         { return 'n'; }
 [ \t\n]             ; /* skip whitespace */
 
+boolean           { return BOOLEAN; }
+char              { return CHAR; }
+integer           { return INTEGER; }
+string            { return STRING; }
+intptr            { return INTPTR; }
+charptr           { return CHARPTR; }
+if                { return IF; }
+else              { return ELSE; }
+while             { return WHILE; }
+var               { return VAR; }
+procedure         { return PROCEDURE; }
+return            { return RETURN; }
+null              { return NULL; }
+
 .                   yyerror((char *) "invalid character");
 
 %%
