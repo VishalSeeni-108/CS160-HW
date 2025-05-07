@@ -30,6 +30,46 @@
  %token PROCEDURE 
  %token RETURN 
 
+ /*operators*/
+ %token AND
+ %token DIVIDE
+ %token EQUAL
+ %token BOOL_EQUAL
+ %token GREATER_THAN
+ %token GREATER_THAN_OR_EQUAL
+ %token LESS_THAN
+ %token LESS_THAN_OR_EQUAL
+ %token MINUS
+ %token NOT
+ %token NOT_EQUAL
+ %token OR 
+ %token PLUS
+ %token TIMES
+ %token AMPERSAND
+ %token CARET
+ %token NULL_TOKEN
+
+ /*literals*/
+ %token BOOL_LITERAL
+ %token CHAR_LITERAL
+ %token INTEGER_LITERAL
+ %token STRING_LITERAL
+ %token IDENTIFIER_LITERAL
+ %token POINTER_LITERAL
+ 
+ /*other*/
+ %token SEMICOLON
+ %token COLON
+ %token COMMA
+ %token BAR_INT
+ %token BAR_STRING
+ %token OPEN_CURLY
+ %token CLOSE_CURLY
+ %token OPEN_PARAN
+ %token CLOSE_PARAN
+ %token OPEN_SQUARE
+ %token CLOSE_SQUARE
+
 %%
 
 /** WRITE ME:
