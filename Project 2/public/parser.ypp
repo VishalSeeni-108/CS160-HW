@@ -17,58 +17,56 @@
  */
 
 /*keywords*/
- %token BOOLEAN
- %token CHAR 
- %token INTEGER
- %token STRING 
- %token INTPTR 
- %token CHARPTR
- %token IF
- %token ELSE 
- %token WHILE 
- %token VAR 
- %token PROCEDURE 
- %token RETURN 
+ %token T_BOOLEAN
+ %token T_CHAR 
+ %token T_INTEGER
+ %token T_STRING 
+ %token T_INTPTR 
+ %token T_CHARPTR
+ %token T_IF
+ %token T_ELSE 
+ %token T_WHILE 
+ %token T_VAR 
+ %token T_PROCEDURE 
+ %token T_RETURN 
+ %token T_NULL
 
  /*operators*/
- %token AND
- %token DIVIDE
- %token EQUAL
- %token BOOL_EQUAL
- %token GREATER_THAN
- %token GREATER_THAN_OR_EQUAL
- %token LESS_THAN
- %token LESS_THAN_OR_EQUAL
- %token MINUS
- %token NOT
- %token NOT_EQUAL
- %token OR 
- %token PLUS
- %token TIMES
- %token AMPERSAND
- %token CARET
- %token NULL_TOKEN
+ %token T_AND
+ %token T_DIVIDE
+ %token T_EQUAL
+ %token T_BOOL_EQUAL
+ %token T_GREATER_THAN
+ %token T_GREATER_THAN_OR_EQUAL
+ %token T_LESS_THAN
+ %token T_LESS_THAN_OR_EQUAL
+ %token T_MINUS
+ %token T_NOT
+ %token T_NOT_EQUAL
+ %token T_OR 
+ %token T_PLUS
+ %token T_TIMES
+ %token T_REFERENCE
+ %token T_DEREFERENCE
 
  /*literals*/
- %token BOOL_LITERAL
- %token CHAR_LITERAL
- %token INTEGER_LITERAL
- %token STRING_LITERAL
- %token IDENTIFIER_LITERAL
- %token POINTER_LITERAL
+ %token T_BOOL_LITERAL
+ %token T_CHAR_LITERAL
+ %token T_INTEGER_LITERAL
+ %token T_STRING_LITERAL
+ %token T_IDENTIFIER_LITERAL
  
  /*other*/
- %token SEMICOLON
- %token COLON
- %token COMMA
- %token BAR_INT
- %token BAR_STRING
- %token OPEN_CURLY
- %token CLOSE_CURLY
- %token OPEN_PARAN
- %token CLOSE_PARAN
- %token OPEN_SQUARE
- %token CLOSE_SQUARE
+ %token T_SEMICOLON
+ %token T_COLON
+ %token T_COMMA
+ %token T_BAR
+ %token T_OPEN_CURLY
+ %token T_CLOSE_CURLY
+ %token T_OPEN_PARAN
+ %token T_CLOSE_PARAN
+ %token T_OPEN_SQUARE
+ %token T_CLOSE_SQUARE
 
 %%
 
@@ -77,20 +75,96 @@
  *  the grammar for the language for this project here.
  */
 
-List    : List Expr '.' {printf("parsed expresion\n");}
-        | Expr '.' {printf("parsed expresion\n");}
-        | BOOLEAN '.' {printf("Got a boolean!\n");}
-        ;
+start               : procedure procedureList
+                    ;
 
-Expr    : Expr '+' Expr 
-        | Expr '-' Expr 
-        | Expr '*' Expr
-        | 'n'
-        | '-' Expr  
-        | '(' Expr ')'
-        | '|' Expr '|'
-        ;
+procedureList       : procedure procedureList
+                    | 
+                    ;
+                
+procedure           : T_PROCEDURE T_IDENTIFIER_LITERAL T_OPEN_PARAN parameterList T_CLOSE_PARAN T_RETURN type T_OPEN_CURLY procedureBody T_CLOSE_CURLY
+                    ;
 
+parameterList       : identifiers T_COLON type T_SEMICOLON parameterList
+| identifiers T_COLON type
+|
+;
+
+declare             : procedure declare    
+                    |
+                    ;
+
+procedureBody       : declare variable statement returnStatement T_SEMICOLON
+                    | 
+                    ;
+
+identifiers         : T_IDENTIFIER_LITERAL T_COMMA identifiers
+                    | T_IDENTIFIER_LITERAL
+                    ; 
+
+variable            : T_VAR identifiers T_COLON type T_SEMICOLON variable
+                    | T_VAR identifiers T_COLON T_STRING T_OPEN_SQUARE T_INTEGER_LITERAL T_CLOSE_SQUARE T_SEMICOLON variable
+                    |
+                    ;
+
+leftHandSide        : T_IDENTIFIER_LITERAL
+                    | T_IDENTIFIER_LITERAL T_OPEN_SQUARE expression T_CLOSE_SQUARE
+                    | T_DEREFERENCE T_IDENTIFIER_LITERAL
+                    ; 
+
+codeBlock           : T_OPEN_CURLY variable statement T_CLOSE_CURLY
+                    ;
+
+returnStatement     : T_RETURN expression
+                    ;
+
+statement           : T_IF T_OPEN_PARAN expression T_CLOSE_PARAN codeBlock statement
+                    | T_IF T_OPEN_PARAN expression T_CLOSE_PARAN codeBlock T_ELSE codeBlock statement 
+                    | leftHandSide T_EQUAL expression T_SEMICOLON statement
+                    | leftHandSide T_EQUAL T_STRING_LITERAL T_SEMICOLON statement
+                    | leftHandSide T_EQUAL T_IDENTIFIER_LITERAL T_OPEN_PARAN expressionList T_CLOSE_PARAN T_SEMICOLON statement
+                    | leftHandSide T_EQUAL T_IDENTIFIER_LITERAL T_OPEN_PARAN T_CLOSE_PARAN T_SEMICOLON statement
+                    | T_WHILE T_OPEN_PARAN expression T_CLOSE_PARAN codeBlock statement
+                    | codeBlock statement
+                    |
+                    ;
+
+expressionList      : expression T_COMMA expressionList
+                    | expression
+                    ;
+
+expression          : T_MINUS expression
+                    | T_REFERENCE expression
+                    | T_DEREFERENCE expression
+                    | T_NOT expression
+                    | expression T_AND expression
+                    | expression T_OR expression
+                    | expression T_TIMES expression
+                    | expression T_DIVIDE expression
+                    | expression T_PLUS expression
+                    | expression T_MINUS expression
+                    | expression T_GREATER_THAN expression
+                    | expression T_LESS_THAN expression
+                    | expression T_GREATER_THAN_OR_EQUAL expression
+                    | expression T_LESS_THAN_OR_EQUAL expression
+                    | expression T_BOOL_EQUAL expression
+                    | expression T_NOT_EQUAL expression
+                    | T_OPEN_PARAN expression T_CLOSE_PARAN
+                    | T_BAR expression T_BAR
+                    | T_IDENTIFIER_LITERAL T_OPEN_SQUARE expression T_CLOSE_SQUARE
+                    | T_IDENTIFIER_LITERAL
+                    | T_INTEGER_LITERAL
+                    | T_BOOL_LITERAL
+                    | T_CHAR_LITERAL
+                    | T_NULL
+                    
+
+type                : T_BOOLEAN
+                    | T_CHAR
+                    | T_CHARPTR
+                    | T_INTEGER
+                    | T_INTPTR
+                    ; 
 %%
 
 /** You shall not pass!
