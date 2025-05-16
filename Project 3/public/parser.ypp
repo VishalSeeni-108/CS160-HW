@@ -75,11 +75,13 @@
  %token T_CLOSE_SQUARE
 
  /*precedence*/
-  %left T_BOOL_EQUAL
+ %left T_OR
+ %left T_AND
+ %left T_BOOL_EQUAL T_NOT_EQUAL
+ %left T_GREATER_THAN T_GREATER_THAN_OR_EQUAL T_LESS_THAN T_LESS_THAN_OR_EQUAL
  %left T_PLUS T_MINUS
  %left T_TIMES T_DIVIDE
-
- %right UMINUS
+ %right UMINUS T_REFERENCE T_DEREFERENCE T_NOT
 
 
 %%
@@ -226,7 +228,8 @@ expression          : T_MINUS expression %prec UMINUS {$$.u_expr = new Uminus{$2
                     | T_IDENTIFIER_LITERAL {$$.u_expr = new Ident(new SymName($1.u_base_charptr)); }
                     | T_INTEGER_LITERAL {$$.u_expr = new IntLit(new Primitive($1.u_base_int)); }
                     | T_BOOL_LITERAL {$$.u_expr = new BoolLit(new Primitive($1.u_base_int)); }
-                    | T_CHAR_LITERAL {$$.u_expr = new CharLit(new Primitive((int)(*($1.u_base_charptr)))); }
+                    | T_CHAR_LITERAL {  
+                                        $$.u_expr = new CharLit(new Primitive($1.u_base_int)); }
                     | T_NULL
                     
 
@@ -235,7 +238,7 @@ type                : T_BOOLEAN {$$.u_type = new TBoolean(); }
                     | T_CHARPTR {$$.u_type = new TCharPtr(); }
                     | T_INTEGER {$$.u_type = new TInteger(); }
                     | T_INTPTR {$$.u_type = new TIntPtr(); }
-                    | T_STRING {$$.u_type = new TString(new Primitive(0));}
+                    | T_STRING {$$.u_type = new TString(new Primitive(255));}
                     ; 
 %%
 
@@ -248,6 +251,5 @@ extern int yylineno;
 void yyerror(const char *s)
 {
     fprintf(stderr, "%s at line %d\n", s, yylineno);
-    fprintf(stderr, "Error is coming from parser\n"); 
     exit(1);
 }

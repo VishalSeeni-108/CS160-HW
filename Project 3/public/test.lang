@@ -1,0 +1,14 @@
+procedure test() return integer {
+    var dec : integer;
+    var hex : integer;
+    var oct : integer;
+    var bin : integer;
+
+    dec = 42;
+    hex = 0x2A;
+    oct = 052;
+    bin = 101010b;
+
+
+    return dec;
+}

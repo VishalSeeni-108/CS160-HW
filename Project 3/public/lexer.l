@@ -6,6 +6,7 @@
     #include <cstring>
     #include "ast.hpp"
     #include "parser.hpp"
+    #include <string>
 
     void yyerror(const char *); 
 %}
@@ -77,11 +78,28 @@ true {  yylval.u_base_int = 1;
                 return T_BOOL_LITERAL; }
 false {  yylval.u_base_int = 0; 
                 return T_BOOL_LITERAL; }
-\'[^\"\n]\'         {   yylval.u_base_charptr = strdup(yytext);
+\'[^\"\n]\'         {   yylval.u_base_int = yytext[1];
                         return T_CHAR_LITERAL;}
-[1-9][0-9]*|0|0[xX][0-9a-fA-F]+|0[0-7]*|[01]+b   {  yylval.u_base_int = std::atoi(yytext);
-                                                    return T_INTEGER_LITERAL; }
-\"[^\"\n]*\"        { return T_STRING_LITERAL; }
+
+[0]|[1-9][0-9]* {yylval.u_base_int = std::atoi(yytext); 
+                 return T_INTEGER_LITERAL; }
+
+[0][X|x][0-9a-fA-F]* {yylval.u_base_int = std::stoi(yytext+2, nullptr, 16); 
+                      return T_INTEGER_LITERAL; 
+                      }
+
+[0][0-7]* {yylval.u_base_int = std::stoi(yytext+1, nullptr, 8); 
+           return T_INTEGER_LITERAL; }
+                        
+[01]+b {char* rawNum = strdup(yytext); 
+          rawNum[strlen(rawNum)-1] = '\0'; 
+          yylval.u_base_int = std::stoi(rawNum, nullptr, 2); 
+          return T_INTEGER_LITERAL; }
+
+\"[^\"\n]*\"        {   yylval.u_base_charptr = strdup(yytext);
+                        yylval.u_base_charptr = strdup(yytext + 1); 
+                        yylval.u_base_charptr[strlen(yylval.u_base_charptr) - 1] = '\0';
+                        return T_STRING_LITERAL; }
 [a-zA-Z][0-9_a-zA-Z]*       {   yylval.u_base_charptr = strdup(yytext); 
                                 return T_IDENTIFIER_LITERAL; }
 
