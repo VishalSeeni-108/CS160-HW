@@ -22,13 +22,220 @@
  *  - Put all your precedence/associativity rules here
  */
 
-%token USELESS
+/*keywords*/
+ %token T_BOOLEAN
+ %token T_CHAR 
+ %token T_INTEGER
+ %token T_STRING 
+ %token T_INTPTR 
+ %token T_CHARPTR
+ %token T_IF
+ %token T_ELSE 
+ %token T_WHILE 
+ %token T_VAR 
+ %token T_PROCEDURE 
+ %token T_RETURN 
+ %token T_NULL
+
+ /*operators*/
+ %token T_AND
+ %token T_DIVIDE
+ %token T_EQUAL
+ %token T_BOOL_EQUAL
+ %token T_GREATER_THAN
+ %token T_GREATER_THAN_OR_EQUAL
+ %token T_LESS_THAN
+ %token T_LESS_THAN_OR_EQUAL
+ %token T_MINUS
+ %token T_NOT
+ %token T_NOT_EQUAL
+ %token T_OR 
+ %token T_PLUS
+ %token T_TIMES
+ %token T_REFERENCE
+ %token T_DEREFERENCE
+
+ /*literals*/
+ %token T_BOOL_LITERAL
+ %token T_CHAR_LITERAL
+ %token T_INTEGER_LITERAL
+ %token T_STRING_LITERAL
+ %token T_IDENTIFIER_LITERAL
+ 
+ /*other*/
+ %token T_SEMICOLON
+ %token T_COLON
+ %token T_COMMA
+ %token T_BAR
+ %token T_OPEN_CURLY
+ %token T_CLOSE_CURLY
+ %token T_OPEN_PARAN
+ %token T_CLOSE_PARAN
+ %token T_OPEN_SQUARE
+ %token T_CLOSE_SQUARE
+
+ /*precedence*/
+ %left T_OR
+ %left T_AND
+ %left T_BOOL_EQUAL T_NOT_EQUAL
+ %left T_GREATER_THAN T_GREATER_THAN_OR_EQUAL T_LESS_THAN T_LESS_THAN_OR_EQUAL
+ %left T_PLUS T_MINUS
+ %left T_TIMES T_DIVIDE
+ %right UMINUS T_REFERENCE T_DEREFERENCE T_NOT
 
 %%
 
 /* WRITEME: Put your code from Project 3 here */
 
-all : USELESS;
+start               : procedure procedureList {//printf("In start\n"); 
+                                               $$.u_proc_list = $2.u_proc_list; 
+                                               $$.u_proc_list->push_front($1.u_proc); 
+                                               ast = new ProgramImpl($$.u_proc_list);}
+                    ;
+
+procedureList       : procedure procedureList {//printf("In procedureList branch 1\n");
+                                               $$.u_proc_list = $2.u_proc_list; 
+                                               $$.u_proc_list->push_front($1.u_proc); }
+                    | { //printf("In procedureList branch 2\n");
+                        $$.u_proc_list = new std::list<Proc_ptr>(); }
+                    ;
+                 
+procedure           : T_PROCEDURE T_IDENTIFIER_LITERAL T_OPEN_PARAN parameterList T_CLOSE_PARAN T_RETURN type T_OPEN_CURLY procedureBody T_CLOSE_CURLY {    //printf("In procedure\n");
+                                                                                                                                                            $$.u_proc = new ProcImpl(new SymName($2.u_base_charptr), $4.u_decl_list, $7.u_type, $9.u_procedure_block); }
+                    ;
+
+parameterList       : identifiers T_COLON type T_SEMICOLON parameterList {//printf("In parameterList branch 1\n"); 
+                                                                          $$.u_decl_list = $5.u_decl_list; 
+                                                                          $$.u_decl_list->push_front(new DeclImpl($1.u_symname_list, $3.u_type)); }
+                    | identifiers T_COLON type {//printf("In parameterList branch 2\n");
+                                                $$.u_decl_list = new std::list<Decl_ptr>(); 
+                                                $$.u_decl_list->push_front(new DeclImpl($1.u_symname_list, $3.u_type)); }
+                    | { //printf("In parameterList branch 3\n"); 
+                        $$.u_decl_list = new std::list<Decl_ptr>(); }
+                    ;
+
+declare             : procedure declare {//printf("In declare branch 1\n");
+                                         $$.u_proc_list = $2.u_proc_list; 
+                                         $$.u_proc_list->push_front($1.u_proc); }
+                    | { //printf("In declare branch 2\n");
+                        $$.u_proc_list = new std::list<Proc_ptr>();}
+                    ;
+
+procedureBody       : declare variableList statementList returnStatement T_SEMICOLON {  //printf("In procedureBody branch 1\n"); 
+                                                                                $$.u_procedure_block = new Procedure_blockImpl($1.u_proc_list, $2.u_decl_list, $3.u_stat_list, $4.u_return_stat); 
+                                                                                //printf("Exiting procedureBody branch 1\n");
+                                                                                }
+                    | { //printf("In procedureBody branch 2\n"); 
+                        std::list<Proc_ptr>* procList = new std::list<Proc_ptr>(); 
+                        std::list<Decl_ptr>* varList = new std::list<Decl_ptr>(); 
+                        std::list<Stat_ptr>* statList = new std::list<Stat_ptr>(); 
+                        $$.u_procedure_block = new Procedure_blockImpl(procList, varList, statList, nullptr); }
+                    ;
+
+identifiers         : T_IDENTIFIER_LITERAL T_COMMA identifiers {//printf("In identifiers branch 1\n"); 
+                                                                $$.u_symname_list = $3.u_symname_list; 
+                                                                $$.u_symname_list->push_front(new SymName($1.u_base_charptr)); }
+                    | T_IDENTIFIER_LITERAL {//printf("In indentifiers branch 2\n");
+                                            $$.u_symname_list = new std::list<SymName_ptr>(); 
+                                            $$.u_symname_list->push_front(new SymName($1.u_base_charptr));}
+                    ; 
+
+variable            : T_VAR identifiers T_COLON type T_SEMICOLON { //printf("In variable branch 1\n");
+                                                                            $$.u_decl = new DeclImpl($2.u_symname_list, $4.u_type); }
+                    | T_VAR identifiers T_COLON T_STRING T_OPEN_SQUARE T_INTEGER_LITERAL T_CLOSE_SQUARE T_SEMICOLON  {  //printf("In variable branch 2\n");
+                                                                                                                                $$.u_decl = new DeclImpl($2.u_symname_list, new TString(new Primitive($6.u_base_int))); }
+                    ;
+
+variableList        : variable variableList {//printf("In variableList branch 1\n");
+                                             $$.u_decl_list = $2.u_decl_list; 
+                                             $$.u_decl_list->push_front($1.u_decl);}
+                    |{//printf("In variableList branch 2\n");
+                      $$.u_decl_list = new std::list<Decl_ptr>(); }
+                    ;
+
+leftHandSide        : T_IDENTIFIER_LITERAL {//printf("In leftHandSide branch 1\n"); 
+                                            $$.u_lhs = new Variable(new SymName($1.u_base_charptr)); }
+                    | T_IDENTIFIER_LITERAL T_OPEN_SQUARE expression T_CLOSE_SQUARE {//printf("In leftHandSide branch 2\n"); 
+                                                                                    $$.u_lhs = new ArrayElement(new SymName($1.u_base_charptr), $3.u_expr); }
+                    | T_DEREFERENCE T_IDENTIFIER_LITERAL {  //printf("In leftHandSide branch 3\n"); 
+                                                            $$.u_lhs = new DerefVariable(new SymName($2.u_base_charptr)); }
+                    ; 
+
+codeBlock           : T_OPEN_CURLY variableList statementList T_CLOSE_CURLY {//printf("In codeblock\n"); 
+                                                                    $$.u_nested_block = new Nested_blockImpl($2.u_decl_list, $3.u_stat_list); }
+                    ;
+
+returnStatement     : T_RETURN expression { //printf("In returnStatement\n");
+                                            $$.u_return_stat = new Return($2.u_expr); }
+                    ;
+
+statement           : T_IF T_OPEN_PARAN expression T_CLOSE_PARAN codeBlock {  //printf("In statement branch 1\n"); 
+                                                                                        $$.u_stat = new IfNoElse($3.u_expr, $5.u_nested_block); }
+                    | T_IF T_OPEN_PARAN expression T_CLOSE_PARAN codeBlock T_ELSE codeBlock { //printf("In statement branch 2\n"); 
+                                                                                                        $$.u_stat = new IfWithElse($3.u_expr, $5.u_nested_block, $7.u_nested_block); }
+                    | leftHandSide T_EQUAL expression T_SEMICOLON {   //printf("In statement branch 3\n");
+                                                                                $$.u_stat = new Assignment($1.u_lhs, $3.u_expr); }
+                    | leftHandSide T_EQUAL T_STRING_LITERAL T_SEMICOLON { //printf("In statement branch 4\n");
+                                                                                    $$.u_stat = new StringAssignment($1.u_lhs, new StringPrimitive($3.u_base_charptr)); }
+                    | leftHandSide T_EQUAL T_IDENTIFIER_LITERAL T_OPEN_PARAN expressionList T_CLOSE_PARAN T_SEMICOLON {   //printf("In statement branch 5\n"); 
+                                                                                                                                    $$.u_stat = new Call($1.u_lhs, new SymName($3.u_base_charptr), $5.u_expr_list); }
+                    | leftHandSide T_EQUAL T_IDENTIFIER_LITERAL T_OPEN_PARAN T_CLOSE_PARAN T_SEMICOLON {  //printf("In statement branch 6\n"); 
+                                                                                                                    $$.u_stat = new Call($1.u_lhs, new SymName($3.u_base_charptr), new std::list<Expr_ptr>()); }
+                    | T_WHILE T_OPEN_PARAN expression T_CLOSE_PARAN codeBlock {   //printf("In statement branch 7\n"); 
+                                                                                            $$.u_stat = new WhileLoop($3.u_expr, $5.u_nested_block); }
+                    | codeBlock { //printf("In statement branch 8\n"); 
+                                            $$.u_stat = new CodeBlock($1.u_nested_block); }
+                    ;
+
+statementList       : statement statementList {//printf("In statementList branch 1\n"); 
+                                               $$.u_stat_list = $2.u_stat_list; 
+                                               $$.u_stat_list->push_front($1.u_stat); 
+                                                       }
+                    |   {//printf("In statementList branch 2\n"); 
+                         $$.u_stat_list = new std::list<Stat_ptr>(); }
+                    ;
+
+expressionList      : expression T_COMMA expressionList {$$.u_expr_list = $3.u_expr_list; 
+                                                         $$.u_expr_list->push_front($1.u_expr); }
+                    | expression {$$.u_expr_list = new std::list<Expr_ptr>(); 
+                                  $$.u_expr_list->push_front($1.u_expr); }
+                    ;
+
+expression          : T_MINUS expression %prec UMINUS {$$.u_expr = new Uminus{$2.u_expr}; }
+                    | T_REFERENCE leftHandSide {$$.u_expr = new AddressOf($2.u_lhs); }
+                    | T_DEREFERENCE expression {$$.u_expr = new Deref($2.u_expr); }
+                    | T_NOT expression {$$.u_expr = new Not($2.u_expr); }
+                    | expression T_AND expression {$$.u_expr = new And($1.u_expr, $3.u_expr); }
+                    | expression T_OR expression {$$.u_expr = new Or($1.u_expr, $3.u_expr); }
+                    | expression T_TIMES expression { $$.u_expr = new Times($1.u_expr, $3.u_expr); }
+                    | expression T_DIVIDE expression { $$.u_expr = new Div($1.u_expr, $3.u_expr); }
+                    | expression T_PLUS expression { $$.u_expr = new Plus($1.u_expr, $3.u_expr); }
+                    | expression T_MINUS expression { $$.u_expr = new Minus($1.u_expr, $3.u_expr); }
+                    | expression T_GREATER_THAN expression {$$.u_expr = new Gt($1.u_expr, $3.u_expr); }
+                    | expression T_LESS_THAN expression {$$.u_expr = new Lt($1.u_expr, $3.u_expr); }
+                    | expression T_GREATER_THAN_OR_EQUAL expression {$$.u_expr = new Gteq($1.u_expr, $3.u_expr); }
+                    | expression T_LESS_THAN_OR_EQUAL expression {$$.u_expr = new Lteq($1.u_expr, $3.u_expr); }
+                    | expression T_BOOL_EQUAL expression {$$.u_expr = new Compare($1.u_expr, $3.u_expr); }
+                    | expression T_NOT_EQUAL expression {$$.u_expr = new Noteq($1.u_expr, $3.u_expr); }
+                    | T_OPEN_PARAN expression T_CLOSE_PARAN {$$.u_expr = $2.u_expr; }
+                    | T_BAR expression T_BAR {$$.u_expr = new AbsoluteValue($2.u_expr); }
+                    | T_IDENTIFIER_LITERAL T_OPEN_SQUARE expression T_CLOSE_SQUARE {//printf("In expression branch 19\n");
+                                                                                    $$.u_expr = new ArrayAccess(new SymName($1.u_base_charptr), $3.u_expr); }
+                    | T_IDENTIFIER_LITERAL {$$.u_expr = new Ident(new SymName($1.u_base_charptr)); }
+                    | T_INTEGER_LITERAL {$$.u_expr = new IntLit(new Primitive($1.u_base_int)); }
+                    | T_BOOL_LITERAL {$$.u_expr = new BoolLit(new Primitive($1.u_base_int)); }
+                    | T_CHAR_LITERAL {  
+                                        $$.u_expr = new CharLit(new Primitive($1.u_base_int)); }
+                    | T_NULL    {$$.u_expr = new NullLit(); }
+                    
+
+type                : T_BOOLEAN {$$.u_type = new TBoolean(); }
+                    | T_CHAR {$$.u_type = new TCharacter(); }
+                    | T_CHARPTR {$$.u_type = new TCharPtr(); }
+                    | T_INTEGER {$$.u_type = new TInteger(); }
+                    | T_INTPTR {$$.u_type = new TIntPtr(); }
+                    | T_STRING {$$.u_type = new TString(new Primitive(255));}
+                    ; 
 
 %%
 
