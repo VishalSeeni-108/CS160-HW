@@ -126,30 +126,6 @@ class Typecheck : public Visitor
     // Check that there is one and only one main
     void check_for_one_main(ProgramImpl* p)
     {
-        int numMains = 0;
-        for(auto it = p->m_proc_list->begin(); it != p->m_proc_list->end(); it++)
-        {
-            ProcImpl *pip = dynamic_cast<ProcImpl*>((*it));
-            char *name = strdup(pip->m_symname->spelling()); 
-
-            if(strcmp(name, "Main") == 0)
-            {
-                numMains++; 
-            }
-
-            if(numMains > 1)
-            {
-                this->t_error(no_main, p->m_attribute);
-                break; 
-            }
-            else
-            {
-                if(!(pip->m_decl_list->empty()))
-                {
-                    this->t_error(nonvoid_main, p->m_attribute);
-                }
-            }
-        }
     }
 
     // Create a symbol for the procedure and check there is none already
@@ -223,9 +199,6 @@ class Typecheck : public Visitor
     // Check that the declared return type is not an array
     void check_return(Return *p)
     {
-        //TODO - below pulls the child expression type as the return type, need to check this against the parent procedure return type
-        p->m_attribute.m_basetype = p->m_expr->m_attribute.m_basetype; 
-
     }
 
     // Create a symbol for the procedure and check there is none already
@@ -238,29 +211,16 @@ class Typecheck : public Visitor
     // For checking that this expressions type is boolean used in if/else
     void check_pred_if(Expr* p)
     {
-        if(p->m_attribute.m_basetype != bt_boolean)
-        {
-            this->t_error(ifpred_err, p->m_attribute);
-        }
     }
 
     // For checking that this expressions type is boolean used in while
     void check_pred_while(Expr* p)
     {
-        if(p->m_attribute.m_basetype != bt_boolean)
-        {
-            this->t_error(whilepred_err, p->m_attribute);
-        }
     }
 
     void check_assignment(Assignment* p)
     {
-        if(p->m_lhs->m_attribute.m_basetype != p->m_expr->m_attribute.m_basetype)
-        {
-            this->t_error(incompat_assign, p->m_attribute);
-        }
-
-        p->m_attribute.m_basetype = p->m_lhs->m_attribute.m_basetype; 
+        
     }
 
     void check_string_assignment(StringAssignment* p)
@@ -300,6 +260,7 @@ class Typecheck : public Visitor
     // Called by plus and minus: in these cases we allow pointer arithmetics
     void checkset_arithexpr_or_pointer(Expr* parent, Expr* child1, Expr* child2)
     {
+        printf("Checking arithexpr_or_pointer\n");
         if((!(child1->m_attribute.m_basetype == bt_charptr || child1->m_attribute.m_basetype == bt_intptr || child1->m_attribute.m_basetype == bt_ptr)) || (child2->m_attribute.m_basetype != bt_integer))
         {
             this->t_error(expr_pointer_arithmetic_err, parent->m_attribute);
@@ -369,12 +330,6 @@ class Typecheck : public Visitor
     // For checking unary minus
     void checkset_uminus(Expr* parent, Expr* child)
     {
-        if(child->m_attribute.m_basetype != bt_integer)
-        {
-            this->t_error(expr_type_err, parent->m_attribute);
-        }
-
-        parent->m_attribute.m_basetype = bt_integer;
     }
 
     void checkset_absolute_value(Expr* parent, Expr* child)
@@ -405,17 +360,7 @@ class Typecheck : public Visitor
     {
         //Duplicate variables checked by add_decl_symbol
         //Variables added to symbol table in add_decl_symbol/DeclImpl as well
-        //Check if variable is in symbol table and throw error if it isn't
-        char *name = strdup(p->m_symname->spelling());
-        if(m_st->exist(name))
-        {
-            Symbol* s = m_st->lookup(name);
-            p->m_attribute.m_basetype = s->m_basetype; //Pass type from symbol table back into variable
-        }
-        else //Variable not in symbol table i.e. not declared yet (TODO - figure out how scoping fits into this)
-        {
-            this->t_error(var_undef, p->m_attribute);
-        }
+
     }
 
 
@@ -428,12 +373,7 @@ class Typecheck : public Visitor
 
     void visitProgramImpl(ProgramImpl* p)
     {
-        check_for_one_main(p); 
-        for(auto it = p->m_proc_list->begin(); it != p->m_proc_list->end(); it++)
-        {
-            ProcImpl *pip = dynamic_cast<ProcImpl*>((*it));
-            pip->accept(this);
-        }
+        default_rule(p)
     }
 
     void visitProcImpl(ProcImpl* p)
@@ -449,9 +389,7 @@ class Typecheck : public Visitor
 
     void visitNested_blockImpl(Nested_blockImpl* p)
     {
-        m_st->open_scope(); 
         default_rule(p)
-        m_st->close_scope(); 
     }
 
     void visitProcedure_blockImpl(Procedure_blockImpl* p)
@@ -478,6 +416,7 @@ class Typecheck : public Visitor
 
     void visitIdent(Ident* p)
     {
+        printf("Visited ident for %s\n", p->m_symname->spelling());
         default_rule(p)
         char *name = strdup(p->m_symname->spelling());
         if(m_st->exist(name))
@@ -495,26 +434,22 @@ class Typecheck : public Visitor
     void visitReturn(Return* p)
     {
         default_rule(p)
-        check_return(p);
+        p->m_attribute.m_basetype = p->m_expr->m_attribute.m_basetype; 
     }
 
     void visitIfNoElse(IfNoElse* p)
     {
         default_rule(p)
-        check_pred_if(p->m_expr); 
     }
 
     void visitIfWithElse(IfWithElse* p)
     {
         default_rule(p)
-        check_pred_if(p->m_expr);
     }
 
     void visitWhileLoop(WhileLoop* p)
     {
         default_rule(p)
-        check_pred_while(p->m_expr);
-
     }
 
     void visitCodeBlock(CodeBlock *p) 
@@ -603,14 +538,6 @@ class Typecheck : public Visitor
     void visitMinus(Minus* p)
     {
         default_rule(p)
-        if(p->m_expr_1->m_attribute.m_basetype == bt_intptr || p->m_expr_1->m_attribute.m_basetype == bt_charptr || p->m_expr_1->m_attribute.m_basetype == bt_ptr)
-        {
-            checkset_arithexpr_or_pointer(p, p->m_expr_1, p->m_expr_2);
-        }
-        else
-        {
-            checkset_arithexpr(p, p->m_expr_1, p->m_expr_2);
-        }
     }
 
     void visitNoteq(Noteq* p)
@@ -653,7 +580,6 @@ class Typecheck : public Visitor
     void visitUminus(Uminus* p)
     {
         default_rule(p)
-        checkset_uminus(p, p->m_expr); 
     }
 
     void visitArrayAccess(ArrayAccess* p)
@@ -700,7 +626,6 @@ class Typecheck : public Visitor
     void visitVariable(Variable* p)
     {
         default_rule(p)
-        checkset_variable(p);
     }
 
     void visitDeref(Deref* p)

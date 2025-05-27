@@ -1,15 +1,8 @@
 procedure Main() return integer
 {
-    var x: integer; 
-    var y: intptr; 
+    var x, y : integer; 
     var z : integer; 
-    
-    z = 5; 
-
+    z = x + y; 
 	return 0;
 }
 
-procedure Main2() return integer
-{
-    return 1;
-}
