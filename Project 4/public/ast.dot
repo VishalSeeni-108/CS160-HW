@@ -1,0 +1,60 @@
+digraph G { page="8.5,11"; size="7.5, 10"; 
+"0" -> "1"
+"1" [label="ProgramImpl"]
+"1" -> "2"
+"2" [label="ProcImpl"]
+"2" -> "3"
+"3" [label="SymName\n\"Main\""]
+"2" -> "4"
+"4" [label="TInteger"]
+"2" -> "5"
+"5" [label="ProcedureBlockImpl"]
+"5" -> "6"
+"6" [label="DeclImpl"]
+"6" -> "7"
+"7" [label="SymName\n\"x\""]
+"6" -> "8"
+"8" [label="TInteger"]
+"5" -> "9"
+"9" [label="DeclImpl"]
+"9" -> "10"
+"10" [label="SymName\n\"y\""]
+"9" -> "11"
+"11" [label="TIntPtr"]
+"5" -> "12"
+"12" [label="DeclImpl"]
+"12" -> "13"
+"13" [label="SymName\n\"z\""]
+"12" -> "14"
+"14" [label="TInteger"]
+"5" -> "15"
+"15" [label="Assignment"]
+"15" -> "16"
+"16" [label="Variable"]
+"16" -> "17"
+"17" [label="SymName\n\"z\""]
+"15" -> "18"
+"18" [label="IntLit"]
+"18" -> "19"
+"19" [label="Primitive\n5"]
+"5" -> "20"
+"20" [label="Return"]
+"20" -> "21"
+"21" [label="IntLit"]
+"21" -> "22"
+"22" [label="Primitive\n0"]
+"1" -> "23"
+"23" [label="ProcImpl"]
+"23" -> "24"
+"24" [label="SymName\n\"Main2\""]
+"23" -> "25"
+"25" [label="TInteger"]
+"23" -> "26"
+"26" [label="ProcedureBlockImpl"]
+"26" -> "27"
+"27" [label="Return"]
+"27" -> "28"
+"28" [label="IntLit"]
+"28" -> "29"
+"29" [label="Primitive\n1"]
+}

@@ -8,7 +8,7 @@
     #include "parser.hpp"
     #include <string>
 
-    void yyerror(const char *); 
+    /* void yyerror(const char *); */
 %}
 
 /** WRITE ME:
@@ -30,7 +30,7 @@
 
 %%
 
-
+ /* WRITEME: Put your code from Project 3 here */
 
 "boolean"           { return T_BOOLEAN; }
 "char"              { return T_CHAR; }
@@ -105,8 +105,6 @@ false {  yylval.u_base_int = 0;
 
 [ \t\n]             ; /* skip whitespace */
 \/%(%[^\/]|[^%]|\n)*%\/     ;
-
-
 
 %%
 
