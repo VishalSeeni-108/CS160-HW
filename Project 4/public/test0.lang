@@ -1,8 +1,23 @@
+procedure func(a:integer) return integer
+{
+	return 1;
+}
+
+
 procedure Main() return integer
 {
     var x, y : integer; 
     var z : integer; 
-    z = x + y; 
+    var a : char; 
+    var q : intptr; 
+    var p : charptr; 
+    var s : string; 
+    z = func(x); 
+    x = y; 
+    s = s;
+    p = &s[0]; 
+    x = ^q; 
+    ^q = q; 
 	return 0;
 }
 

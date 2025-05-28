@@ -119,6 +119,28 @@ class Typecheck : public Visitor
 
     // Helpers
     // WRITEME: You might want write some hepler functions.
+    const char* lhs_to_id(Lhs* lhs)
+    {
+        Variable *v = dynamic_cast<Variable*>(lhs);
+        if(v)
+        {
+            return v->m_symname->spelling(); 
+        }
+
+        DerefVariable *dv = dynamic_cast<DerefVariable*>(lhs);
+        if(dv)
+        {
+            return dv->m_symname->spelling(); 
+        }
+
+        ArrayElement *ae = dynamic_cast<ArrayElement*>(lhs);
+        if(ae)
+        {
+            return ae->m_symname->spelling(); 
+        }
+
+        return nullptr; 
+    }
 
     // Type Checking
     // WRITEME: You need to implement type-checking for this project
@@ -144,7 +166,7 @@ class Typecheck : public Visitor
             }
             else
             {
-                if(!(pip->m_decl_list->empty()))
+                if(!(pip->m_decl_list->empty()) && (strcmp(name, "Main") == 0))
                 {
                     this->t_error(nonvoid_main, p->m_attribute);
                 }
@@ -164,8 +186,8 @@ class Typecheck : public Visitor
             this->t_error(dup_proc_name, p->m_attribute);
         }
 
-        s->m_basetype = bt_procedure; 
-        m_st->open_scope();
+        s->m_basetype = bt_procedure; //Set basetype of symbol
+        m_st->open_scope(); //Open scope for current procedure
 
         //Recursively process args and add to m_arg_type array
         for(auto it = p->m_decl_list->begin(); it != p->m_decl_list->end(); it++)
@@ -232,7 +254,55 @@ class Typecheck : public Visitor
     // existing
     void check_call(Call *p)
     {
-        
+        Symbol *sf, *sid; 
+        const char *id = lhs_to_id(p->m_lhs); 
+        const char *f = p->m_symname->spelling(); 
+
+        //Check if LHS is defined - i.e. check for undefined variable
+        if((sid = m_st->lookup(id)) == 0)
+        {
+            this->t_error(var_undef, p->m_attribute); 
+        }
+
+        //Check if proc is defined / undefined process
+        if((sf = m_st->lookup(f)) == 0)
+        {
+            this->t_error(proc_undef, p->m_attribute); 
+        }
+
+        //Check if proc's basetype is actually bt_procedure
+        if(sf->m_basetype != bt_procedure)
+        {
+            this->t_error(proc_undef, p->m_attribute);
+        } 
+
+        //Check if lhs type = proc's return type
+        if(sid->m_basetype != sf->m_return_type)
+        {
+            this->t_error(call_type_mismatch, p->m_attribute);
+        }
+
+        //Check if number of arguments match
+        if(sf->m_arg_type.size() != p->m_expr_list->size())
+        {
+            this->t_error(narg_mismatch, p->m_attribute);
+        }
+
+        //Check argument type
+        std::vector<Basetype>::iterator formal_args_iter = sf->m_arg_type.begin(); 
+        for(std::list<Expr_ptr>::iterator act_args_iter = p->m_expr_list->begin(); act_args_iter != p->m_expr_list->end(); act_args_iter++, formal_args_iter++)
+        {
+            Basetype act_type = (*act_args_iter)->m_attribute.m_basetype; 
+            Basetype form_type = (*formal_args_iter); 
+
+            if(act_type != form_type)
+            {
+                if(!((act_type == bt_ptr) && ((form_type == bt_charptr) || (form_type == bt_intptr))))
+                {
+                    this->t_error(arg_type_mismatch, p->m_attribute); 
+                }
+            }
+        }
     }
 
     // For checking that this expressions type is boolean used in if/else
@@ -255,24 +325,89 @@ class Typecheck : public Visitor
 
     void check_assignment(Assignment* p)
     {
-        if(p->m_lhs->m_attribute.m_basetype != p->m_expr->m_attribute.m_basetype)
+        Symbol *sid; 
+        const char *id = lhs_to_id(p->m_lhs); 
+
+         //Check if LHS is defined - i.e. check for undefined variable
+        if((sid = m_st->lookup(id)) == 0)
         {
-            this->t_error(incompat_assign, p->m_attribute);
+            this->t_error(var_undef, p->m_attribute); 
         }
 
-        p->m_attribute.m_basetype = p->m_lhs->m_attribute.m_basetype; 
+        //Check if LHS type is same as expression type/null pointer being assigned a char/int pointer
+        if(sid->m_basetype != p->m_expr->m_attribute.m_basetype)
+        {
+            if(!(((sid->m_basetype == bt_ptr) && (p->m_expr->m_attribute.m_basetype == bt_charptr || p->m_expr->m_attribute.m_basetype == bt_intptr)) 
+                || ((dynamic_cast<ArrayElement*>(p->m_lhs)) && (p->m_expr->m_attribute.m_basetype == bt_char)) 
+                || ((dynamic_cast<DerefVariable*>(p->m_lhs)) && (p->m_expr->m_attribute.m_basetype == bt_integer || p->m_expr->m_attribute.m_basetype == bt_char))))
+            {
+                this->t_error(incompat_assign, p->m_attribute);
+            }
+        }
     }
 
     void check_string_assignment(StringAssignment* p)
     {
+        Symbol *sid; 
+        const char *id = lhs_to_id(p->m_lhs); 
+
+         //Check if LHS is defined - i.e. check for undefined variable
+        if((sid = m_st->lookup(id)) == 0)
+        {
+            this->t_error(var_undef, p->m_attribute); 
+        }
+
+        //Check if LHS type is a string
+        if(sid->m_basetype != bt_string)
+        {
+            this->t_error(incompat_assign, p->m_attribute);
+        }
     }
 
     void check_array_access(ArrayAccess* p)
     {
+        //Check is symname is defined
+        char *name = strdup(p->m_symname->spelling());
+        if(!(m_st->exist(name)))
+        {
+            this->t_error(var_undef, p->m_attribute);
+        }
+
+        if(p->m_expr->m_attribute.m_basetype != bt_integer)
+        {
+            this->t_error(array_index_error, p->m_attribute); 
+        }
+        
+        Symbol *s = m_st->lookup(name); 
+        if(s->m_basetype != bt_string)
+        {
+            this->t_error(no_array_var, p->m_attribute);
+        }
+
+        p->m_attribute.m_basetype = bt_char; 
     }
 
     void check_array_element(ArrayElement* p)
     {
+        //Check is symname is defined
+        char *name = strdup(p->m_symname->spelling());
+        if(!(m_st->exist(name)))
+        {
+            this->t_error(var_undef, p->m_attribute);
+        }
+
+        if(p->m_expr->m_attribute.m_basetype != bt_integer)
+        {
+            this->t_error(array_index_error, p->m_attribute); 
+        }
+        
+        Symbol *s = m_st->lookup(name); 
+        if(s->m_basetype != bt_string)
+        {
+            this->t_error(no_array_var, p->m_attribute);
+        }
+
+       p->m_attribute.m_basetype = bt_char; 
     }
 
     // For checking boolean operations(and, or ...)
@@ -389,16 +524,62 @@ class Typecheck : public Visitor
 
     void checkset_addressof(Expr* parent, Lhs* child)
     {
+        Symbol *sid; 
+        const char *id = lhs_to_id(child); 
+
+         //Check if LHS is defined - i.e. check for undefined variable
+        if((sid = m_st->lookup(id)) == 0)
+        {
+            this->t_error(var_undef, parent->m_attribute); 
+        }
+
+        //Check if LHS type is an integer, char, or indexed string and set appropriate value
+        if(sid->m_basetype == bt_integer)
+        {
+            parent->m_attribute.m_basetype = bt_intptr; 
+        }
+        else if(sid->m_basetype == bt_char || (dynamic_cast<ArrayElement*>(child)))
+        {
+            parent->m_attribute.m_basetype = bt_charptr; 
+        }
+        else
+        {
+            this->t_error(expr_addressof_error, parent->m_attribute);
+        }
     }
 
     void checkset_deref_expr(Deref* parent,Expr* child)
     {
+        if(child->m_attribute.m_basetype == bt_intptr)
+        {
+            parent->m_attribute.m_basetype = bt_integer; 
+        }
+        else if(child->m_attribute.m_basetype == bt_charptr)
+        {
+            parent->m_attribute.m_basetype == bt_char; 
+        }
+        else
+        {
+            this->t_error(invalid_deref, parent->m_attribute);
+        }
     }
 
     // Check that if the right-hand side is an lhs, such as in case of
     // addressof
     void checkset_deref_lhs(DerefVariable* p)
     {
+        //Check is symname is defined
+        char *name = strdup(p->m_symname->spelling());
+        if(!(m_st->exist(name)))
+        {
+            this->t_error(var_undef, p->m_attribute);
+        }
+
+        Symbol *s = m_st->lookup(name); 
+        if(!(s->m_basetype == bt_intptr || s->m_basetype == bt_charptr))
+        {
+            this->t_error(invalid_deref, p->m_attribute);
+        }
     }
 
     void checkset_variable(Variable* p)
@@ -445,6 +626,7 @@ class Typecheck : public Visitor
     void visitCall(Call* p)
     {
         default_rule(p)
+        check_call(p); 
     }
 
     void visitNested_blockImpl(Nested_blockImpl* p)
@@ -457,6 +639,7 @@ class Typecheck : public Visitor
     void visitProcedure_blockImpl(Procedure_blockImpl* p)
     {
         default_rule(p)
+        p->m_attribute.m_basetype = p->m_parent_attribute->m_basetype; 
     }
 
     void visitDeclImpl(DeclImpl* p)
@@ -474,6 +657,7 @@ class Typecheck : public Visitor
     void visitStringAssignment(StringAssignment *p)
     {
         default_rule(p)
+        check_string_assignment(p);
     }
 
     void visitIdent(Ident* p)
@@ -659,6 +843,7 @@ class Typecheck : public Visitor
     void visitArrayAccess(ArrayAccess* p)
     {
         default_rule(p)
+        check_array_access(p); 
     }
 
     void visitIntLit(IntLit* p)
@@ -695,6 +880,7 @@ class Typecheck : public Visitor
     void visitAddressOf(AddressOf* p)
     {
         default_rule(p)
+        checkset_addressof(p, p->m_lhs); 
     }
 
     void visitVariable(Variable* p)
@@ -706,16 +892,19 @@ class Typecheck : public Visitor
     void visitDeref(Deref* p)
     {
         default_rule(p)
+        checkset_deref_expr(p, p->m_expr); 
     }
 
     void visitDerefVariable(DerefVariable* p)
     {
         default_rule(p)
+        checkset_deref_lhs(p); 
     }
 
     void visitArrayElement(ArrayElement* p)
     {
         default_rule(p)
+        check_array_element(p);
     }
 
     // Special cases
