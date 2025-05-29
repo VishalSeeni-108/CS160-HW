@@ -1,148 +1,0 @@
-digraph G { page="8.5,11"; size="7.5, 10"; 
-"0" -> "1"
-"1" [label="ProgramImpl"]
-"1" -> "2"
-"2" [label="ProcImpl"]
-"2" -> "3"
-"3" [label="SymName\n\"func\""]
-"2" -> "4"
-"4" [label="DeclImpl"]
-"4" -> "5"
-"5" [label="SymName\n\"a\""]
-"4" -> "6"
-"6" [label="TInteger"]
-"2" -> "7"
-"7" [label="TInteger"]
-"2" -> "8"
-"8" [label="ProcedureBlockImpl"]
-"8" -> "9"
-"9" [label="Return"]
-"9" -> "10"
-"10" [label="IntLit"]
-"10" -> "11"
-"11" [label="Primitive\n1"]
-"1" -> "12"
-"12" [label="ProcImpl"]
-"12" -> "13"
-"13" [label="SymName\n\"Main\""]
-"12" -> "14"
-"14" [label="TInteger"]
-"12" -> "15"
-"15" [label="ProcedureBlockImpl"]
-"15" -> "16"
-"16" [label="DeclImpl"]
-"16" -> "17"
-"17" [label="SymName\n\"x\""]
-"16" -> "18"
-"18" [label="SymName\n\"y\""]
-"16" -> "19"
-"19" [label="TInteger"]
-"15" -> "20"
-"20" [label="DeclImpl"]
-"20" -> "21"
-"21" [label="SymName\n\"z\""]
-"20" -> "22"
-"22" [label="TInteger"]
-"15" -> "23"
-"23" [label="DeclImpl"]
-"23" -> "24"
-"24" [label="SymName\n\"a\""]
-"23" -> "25"
-"25" [label="TCharacter"]
-"15" -> "26"
-"26" [label="DeclImpl"]
-"26" -> "27"
-"27" [label="SymName\n\"q\""]
-"26" -> "28"
-"28" [label="TIntPtr"]
-"15" -> "29"
-"29" [label="DeclImpl"]
-"29" -> "30"
-"30" [label="SymName\n\"p\""]
-"29" -> "31"
-"31" [label="TCharPtr"]
-"15" -> "32"
-"32" [label="DeclImpl"]
-"32" -> "33"
-"33" [label="SymName\n\"s\""]
-"32" -> "34"
-"34" [label="TString"]
-"34" -> "35"
-"35" [label="Primitive\n255"]
-"15" -> "36"
-"36" [label="Call"]
-"36" -> "37"
-"37" [label="Variable"]
-"37" -> "38"
-"38" [label="SymName\n\"z\""]
-"36" -> "39"
-"39" [label="SymName\n\"func\""]
-"36" -> "40"
-"40" [label="Ident"]
-"40" -> "41"
-"41" [label="SymName\n\"x\""]
-"15" -> "42"
-"42" [label="Assignment"]
-"42" -> "43"
-"43" [label="Variable"]
-"43" -> "44"
-"44" [label="SymName\n\"x\""]
-"42" -> "45"
-"45" [label="Ident"]
-"45" -> "46"
-"46" [label="SymName\n\"y\""]
-"15" -> "47"
-"47" [label="Assignment"]
-"47" -> "48"
-"48" [label="Variable"]
-"48" -> "49"
-"49" [label="SymName\n\"s\""]
-"47" -> "50"
-"50" [label="Ident"]
-"50" -> "51"
-"51" [label="SymName\n\"s\""]
-"15" -> "52"
-"52" [label="Assignment"]
-"52" -> "53"
-"53" [label="Variable"]
-"53" -> "54"
-"54" [label="SymName\n\"p\""]
-"52" -> "55"
-"55" [label="AddressOf"]
-"55" -> "56"
-"56" [label="ArrayElement"]
-"56" -> "57"
-"57" [label="SymName\n\"s\""]
-"56" -> "58"
-"58" [label="IntLit"]
-"58" -> "59"
-"59" [label="Primitive\n0"]
-"15" -> "60"
-"60" [label="Assignment"]
-"60" -> "61"
-"61" [label="Variable"]
-"61" -> "62"
-"62" [label="SymName\n\"q\""]
-"60" -> "63"
-"63" [label="Deref"]
-"63" -> "64"
-"64" [label="Ident"]
-"64" -> "65"
-"65" [label="SymName\n\"z\""]
-"15" -> "66"
-"66" [label="Assignment"]
-"66" -> "67"
-"67" [label="DerefVariable"]
-"67" -> "68"
-"68" [label="SymName\n\"z\""]
-"66" -> "69"
-"69" [label="Ident"]
-"69" -> "70"
-"70" [label="SymName\n\"q\""]
-"15" -> "71"
-"71" [label="Return"]
-"71" -> "72"
-"72" [label="IntLit"]
-"72" -> "73"
-"73" [label="Primitive\n0"]
-}

@@ -149,6 +149,11 @@ class Typecheck : public Visitor
     void check_for_one_main(ProgramImpl* p)
     {
         int numMains = 0;
+        if(p->m_proc_list->size() < 1)
+        {
+            this->t_error(no_main, p->m_attribute);
+        }
+
         for(auto it = p->m_proc_list->begin(); it != p->m_proc_list->end(); it++)
         {
             ProcImpl *pip = dynamic_cast<ProcImpl*>((*it));
@@ -161,7 +166,7 @@ class Typecheck : public Visitor
 
             if(numMains > 1)
             {
-                this->t_error(no_main, p->m_attribute);
+                this->t_error(dup_proc_name, p->m_attribute);
                 break; 
             }
             else
@@ -172,6 +177,11 @@ class Typecheck : public Visitor
                 }
             }
         }
+
+        if(numMains < 1)
+        {
+            this->t_error(no_main, p->m_attribute);
+        }
     }
 
     // Create a symbol for the procedure and check there is none already
@@ -180,13 +190,14 @@ class Typecheck : public Visitor
     {
         Symbol *s = new Symbol(); 
         char *name = strdup(p->m_symname->spelling());
+        s->m_basetype = bt_procedure; //Set basetype of symbol
 
-        if(m_st->exist(name))
+        if(!m_st->insert(name, s))
         {
             this->t_error(dup_proc_name, p->m_attribute);
         }
 
-        s->m_basetype = bt_procedure; //Set basetype of symbol
+
         m_st->open_scope(); //Open scope for current procedure
 
         //Recursively process args and add to m_arg_type array
@@ -203,7 +214,7 @@ class Typecheck : public Visitor
 
         p->m_type->accept(this); //Accept return type of proc
         s->m_return_type = p->m_type->m_attribute.m_basetype; //Set m_return_type in symbol
-        m_st->insert_in_parent_scope(name, s); //Insert in parent scope
+        //m_st->insert_in_parent_scope(name, s); //Insert in parent scope
         p->m_procedure_block->accept(this); //Accept body
         m_st->close_scope(); //Close scope
 
@@ -216,12 +227,11 @@ class Typecheck : public Visitor
         {
             Symbol *s = new Symbol(); 
             char *name = strdup((*it)->spelling()); 
-            if(m_st->exist(name))
+            s->m_basetype = p->m_type->m_attribute.m_basetype; 
+            if(!m_st->insert(name, s))
             {
                 this->t_error(dup_var_name, p->m_attribute);
-            }
-            s->m_basetype = p->m_type->m_attribute.m_basetype; 
-            m_st->insert(name, s); 
+            }   
         }
     }
 
@@ -337,11 +347,24 @@ class Typecheck : public Visitor
         //Check if LHS type is same as expression type/null pointer being assigned a char/int pointer
         if(sid->m_basetype != p->m_expr->m_attribute.m_basetype)
         {
-            if(!(((sid->m_basetype == bt_ptr) && (p->m_expr->m_attribute.m_basetype == bt_charptr || p->m_expr->m_attribute.m_basetype == bt_intptr)) 
-                || ((dynamic_cast<ArrayElement*>(p->m_lhs)) && (p->m_expr->m_attribute.m_basetype == bt_char)) 
-                || ((dynamic_cast<DerefVariable*>(p->m_lhs)) && (p->m_expr->m_attribute.m_basetype == bt_integer || p->m_expr->m_attribute.m_basetype == bt_char))))
+            if(!(  ((sid->m_basetype == bt_charptr) && (p->m_expr->m_attribute.m_basetype == bt_ptr)) 
+                || ((sid->m_basetype == bt_intptr) && (p->m_expr->m_attribute.m_basetype == bt_ptr))
+                || ((dynamic_cast<ArrayElement*>(p->m_lhs)) && (p->m_expr->m_attribute.m_basetype == bt_char)) ))
             {
-                this->t_error(incompat_assign, p->m_attribute);
+                if(((dynamic_cast<DerefVariable*>(p->m_lhs))))
+                {
+                    DerefVariable *dv = ((dynamic_cast<DerefVariable*>(p->m_lhs))); 
+                    char* name = strdup(dv->m_symname->spelling());
+                    Symbol *s = m_st->lookup(name);
+                    if(!((s->m_basetype == bt_intptr && p->m_expr->m_attribute.m_basetype == bt_integer) || (s->m_basetype == bt_charptr && p->m_expr->m_attribute.m_basetype == bt_char)))
+                    {
+                        this->t_error(incompat_assign, p->m_attribute);
+                    }
+                }
+                else
+                {
+                    this->t_error(incompat_assign, p->m_attribute);
+                }
             }
         }
     }
@@ -424,6 +447,12 @@ class Typecheck : public Visitor
     // For checking arithmetic expressions(plus, times, ...)
     void checkset_arithexpr(Expr* parent, Expr* child1, Expr* child2)
     {
+        if(child1->m_attribute.m_basetype == bt_intptr || child1->m_attribute.m_basetype == bt_charptr || child1->m_attribute.m_basetype == bt_ptr ||
+           child2->m_attribute.m_basetype == bt_intptr || child2->m_attribute.m_basetype == bt_charptr || child2->m_attribute.m_basetype == bt_ptr)
+        {
+            this->t_error(expr_pointer_arithmetic_err, parent->m_attribute);
+        }
+
         if(child1->m_attribute.m_basetype != bt_integer || child2->m_attribute.m_basetype != bt_integer)
         {
             this->t_error(expr_type_err, parent->m_attribute);
@@ -435,12 +464,12 @@ class Typecheck : public Visitor
     // Called by plus and minus: in these cases we allow pointer arithmetics
     void checkset_arithexpr_or_pointer(Expr* parent, Expr* child1, Expr* child2)
     {
-        if((!(child1->m_attribute.m_basetype == bt_charptr || child1->m_attribute.m_basetype == bt_intptr || child1->m_attribute.m_basetype == bt_ptr)) || (child2->m_attribute.m_basetype != bt_integer))
+        if((child1->m_attribute.m_basetype != bt_charptr) || (child2->m_attribute.m_basetype != bt_integer))
         {
             this->t_error(expr_pointer_arithmetic_err, parent->m_attribute);
         }
 
-        parent->m_attribute.m_basetype = bt_integer;
+        parent->m_attribute.m_basetype = bt_charptr; 
     }
 
     // For checking relational(less than , greater than, ...)
@@ -538,9 +567,28 @@ class Typecheck : public Visitor
         {
             parent->m_attribute.m_basetype = bt_intptr; 
         }
-        else if(sid->m_basetype == bt_char || (dynamic_cast<ArrayElement*>(child)))
+        else if(sid->m_basetype == bt_char || (dynamic_cast<ArrayElement*>(child)) )
         {
             parent->m_attribute.m_basetype = bt_charptr; 
+        }
+        else if((dynamic_cast<DerefVariable*>(child)))
+        {
+            DerefVariable *dv = (dynamic_cast<DerefVariable*>(child)); 
+            char* name = strdup(dv->m_symname->spelling()); 
+            Symbol *s = m_st->lookup(name); 
+            if(s->m_basetype == bt_intptr)
+            {
+                parent->m_attribute.m_basetype = bt_intptr; 
+            }
+            else if(s->m_basetype == bt_charptr)
+            {
+                parent->m_attribute.m_basetype = bt_charptr; 
+            }
+            else
+            {
+                this->t_error(expr_addressof_error, parent->m_attribute);
+            }
+
         }
         else
         {
@@ -556,7 +604,7 @@ class Typecheck : public Visitor
         }
         else if(child->m_attribute.m_basetype == bt_charptr)
         {
-            parent->m_attribute.m_basetype == bt_char; 
+            parent->m_attribute.m_basetype = bt_char; 
         }
         else
         {
@@ -576,7 +624,16 @@ class Typecheck : public Visitor
         }
 
         Symbol *s = m_st->lookup(name); 
-        if(!(s->m_basetype == bt_intptr || s->m_basetype == bt_charptr))
+
+        if(s->m_basetype == bt_intptr)
+        {
+            p->m_attribute.m_basetype = bt_integer; 
+        }
+        else if(s->m_basetype == bt_charptr)
+        {
+            p->m_attribute.m_basetype = bt_char; 
+        }
+        else
         {
             this->t_error(invalid_deref, p->m_attribute);
         }
@@ -787,7 +844,7 @@ class Typecheck : public Visitor
     void visitMinus(Minus* p)
     {
         default_rule(p)
-        if(p->m_expr_1->m_attribute.m_basetype == bt_intptr || p->m_expr_1->m_attribute.m_basetype == bt_charptr || p->m_expr_1->m_attribute.m_basetype == bt_ptr)
+        if(p->m_expr_1->m_attribute.m_basetype == bt_charptr)
         {
             checkset_arithexpr_or_pointer(p, p->m_expr_1, p->m_expr_2);
         }
@@ -812,7 +869,7 @@ class Typecheck : public Visitor
     void visitPlus(Plus* p)
     {
         default_rule(p)
-        if(p->m_expr_1->m_attribute.m_basetype == bt_intptr || p->m_expr_1->m_attribute.m_basetype == bt_charptr || p->m_expr_1->m_attribute.m_basetype == bt_ptr)
+        if(p->m_expr_1->m_attribute.m_basetype == bt_charptr)
         {
             checkset_arithexpr_or_pointer(p, p->m_expr_1, p->m_expr_2);
         }

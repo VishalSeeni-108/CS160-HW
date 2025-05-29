@@ -87,9 +87,8 @@
 
 /* WRITEME: Put your code from Project 3 here */
 
-start               : procedure procedureList {//printf("In start\n"); 
-                                               $$.u_proc_list = $2.u_proc_list; 
-                                               $$.u_proc_list->push_front($1.u_proc); 
+start               : procedureList {//printf("In start\n"); 
+                                               $$.u_proc_list = $1.u_proc_list; 
                                                ast = new ProgramImpl($$.u_proc_list);}
                     ;
 
