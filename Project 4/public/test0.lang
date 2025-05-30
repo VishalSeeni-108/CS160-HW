@@ -1,0 +1,11 @@
+procedure Main() return integer 
+{
+    var b: boolean;
+
+    var c : char;
+    var cp : charptr;
+
+    b = (c == cp);
+   
+    return 0;
+}

@@ -503,7 +503,7 @@ class Typecheck : public Visitor
                     this->t_error(expr_type_err, parent->m_attribute);
                 }
             }
-            else if(child1->m_attribute.m_basetype = bt_ptr)
+            else if(child1->m_attribute.m_basetype == bt_ptr)
             {
                 if(!(child2->m_attribute.m_basetype == bt_charptr || child2->m_attribute.m_basetype == bt_intptr || child2->m_attribute.m_basetype == bt_ptr))
                 {
