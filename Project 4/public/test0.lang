@@ -1,0 +1,8 @@
+procedure Main() return integer
+{
+  var x: boolean; 
+  var y: charptr; 
+  x = y == null;  
+
+  return 0;  
+}
