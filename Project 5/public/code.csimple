@@ -1,3 +1,5 @@
-procedure Main() return boolean {
-    return true;
+procedure Main() return integer {
+    var x:integer;
+    x = 5+7;  
+    return x; 
 }
