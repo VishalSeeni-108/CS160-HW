@@ -8,7 +8,9 @@
 #include "assert.h"
 
 // WRITEME: The default attribute propagation rule
-#define default_rule(X) (X)->visit_children(this);
+#define default_rule(X) \
+    (X)->m_attribute.m_scope = m_st->get_scope(); \
+    (X)->visit_children(this); \
 
 #include <typeinfo>
 
@@ -217,7 +219,6 @@ class Typecheck : public Visitor
         //m_st->insert_in_parent_scope(name, s); //Insert in parent scope
         p->m_procedure_block->accept(this); //Accept body
         m_st->close_scope(); //Close scope
-
     }
 
     // Add symbol table information for all the declarations following
@@ -255,9 +256,7 @@ class Typecheck : public Visitor
     // Check that the declared return type is not an array
     void check_return(Return *p)
     {
-        //TODO - below pulls the child expression type as the return type, need to check this against the parent procedure return type
         p->m_attribute.m_basetype = p->m_expr->m_attribute.m_basetype; 
-
     }
 
     // Create a symbol for the procedure and check there is none already
@@ -676,6 +675,7 @@ class Typecheck : public Visitor
 
     void visitProcImpl(ProcImpl* p)
     {
+        (p)->m_attribute.m_scope = m_st->get_scope();
         add_proc_symbol(p); 
         check_proc(p); 
     }
@@ -683,12 +683,12 @@ class Typecheck : public Visitor
     void visitCall(Call* p)
     {
         default_rule(p)
-        check_call(p); 
+        check_call(p);
     }
 
     void visitNested_blockImpl(Nested_blockImpl* p)
     {
-        m_st->open_scope(); 
+         m_st->open_scope(); 
         default_rule(p)
         m_st->close_scope(); 
     }
@@ -730,7 +730,6 @@ class Typecheck : public Visitor
         {
             this->t_error(var_undef, p->m_attribute);
         }
-
     }
 
     void visitReturn(Return* p)
@@ -755,7 +754,6 @@ class Typecheck : public Visitor
     {
         default_rule(p)
         check_pred_while(p->m_expr);
-
     }
 
     void visitCodeBlock(CodeBlock *p) 
@@ -784,7 +782,7 @@ class Typecheck : public Visitor
     void visitTString(TString* p)
     {
         default_rule(p)
-        p->m_attribute.m_basetype = bt_string; 
+        p->m_attribute.m_basetype = bt_string;
     }
 
     void visitTCharPtr(TCharPtr* p)
@@ -857,7 +855,7 @@ class Typecheck : public Visitor
     void visitNoteq(Noteq* p)
     {
         default_rule(p)
-        checkset_equalityexpr(p, p->m_expr_1, p->m_expr_2); 
+        checkset_equalityexpr(p, p->m_expr_1, p->m_expr_2);
     }
 
     void visitOr(Or* p)
@@ -894,7 +892,7 @@ class Typecheck : public Visitor
     void visitUminus(Uminus* p)
     {
         default_rule(p)
-        checkset_uminus(p, p->m_expr); 
+        checkset_uminus(p, p->m_expr);
     }
 
     void visitArrayAccess(ArrayAccess* p)
@@ -907,7 +905,6 @@ class Typecheck : public Visitor
     {
         default_rule(p); 
         p->m_attribute.m_basetype = bt_integer; 
-
     }
 
     void visitCharLit(CharLit* p)

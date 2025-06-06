@@ -1,0 +1,52 @@
+digraph G { page="8.5,11"; size="7.5, 10"; 
+"0" -> "1"
+"1" [label="ProgramImpl"]
+"1" -> "2"
+"2" [label="ProcImpl"]
+"2" -> "3"
+"3" [label="SymName\n\"Main\""]
+"2" -> "4"
+"4" [label="TInteger"]
+"2" -> "5"
+"5" [label="ProcedureBlockImpl"]
+"5" -> "6"
+"6" [label="DeclImpl"]
+"6" -> "7"
+"7" [label="SymName\n\"b\""]
+"6" -> "8"
+"8" [label="TBoolean"]
+"5" -> "9"
+"9" [label="DeclImpl"]
+"9" -> "10"
+"10" [label="SymName\n\"c\""]
+"9" -> "11"
+"11" [label="TCharacter"]
+"5" -> "12"
+"12" [label="DeclImpl"]
+"12" -> "13"
+"13" [label="SymName\n\"cp\""]
+"12" -> "14"
+"14" [label="TCharPtr"]
+"5" -> "15"
+"15" [label="Assignment"]
+"15" -> "16"
+"16" [label="Variable"]
+"16" -> "17"
+"17" [label="SymName\n\"b\""]
+"15" -> "18"
+"18" [label="Compare"]
+"18" -> "19"
+"19" [label="Ident"]
+"19" -> "20"
+"20" [label="SymName\n\"c\""]
+"18" -> "21"
+"21" [label="Ident"]
+"21" -> "22"
+"22" [label="SymName\n\"cp\""]
+"5" -> "23"
+"23" [label="Return"]
+"23" -> "24"
+"24" [label="IntLit"]
+"24" -> "25"
+"25" [label="Primitive\n0"]
+}
