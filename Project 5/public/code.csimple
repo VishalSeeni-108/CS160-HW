@@ -1,5 +1,13 @@
+procedure proc1(a:integer) return integer {
+    return a; 
+}
+
 procedure Main() return integer {
     var x:integer;
-    x = 5+7;  
+    var y: integer; 
+    var z: integer; 
+   
+    x = proc1(5); 
+
     return x; 
 }

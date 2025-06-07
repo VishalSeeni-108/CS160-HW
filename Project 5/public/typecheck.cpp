@@ -202,6 +202,8 @@ class Typecheck : public Visitor
 
         m_st->open_scope(); //Open scope for current procedure
 
+        (p)->m_attribute.m_scope = m_st->get_scope();
+
         //Recursively process args and add to m_arg_type array
         for(auto it = p->m_decl_list->begin(); it != p->m_decl_list->end(); it++)
         {
@@ -665,6 +667,7 @@ class Typecheck : public Visitor
 
     void visitProgramImpl(ProgramImpl* p)
     {
+        (p)->m_attribute.m_scope = m_st->get_scope();
         check_for_one_main(p); 
         for(auto it = p->m_proc_list->begin(); it != p->m_proc_list->end(); it++)
         {
@@ -675,7 +678,7 @@ class Typecheck : public Visitor
 
     void visitProcImpl(ProcImpl* p)
     {
-        (p)->m_attribute.m_scope = m_st->get_scope();
+        //(p)->m_attribute.m_scope = m_st->get_scope();
         add_proc_symbol(p); 
         check_proc(p); 
     }
