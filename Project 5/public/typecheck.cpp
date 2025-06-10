@@ -229,7 +229,11 @@ class Typecheck : public Visitor
         for(auto it = p->m_symname_list->begin(); it != p->m_symname_list->end(); it++)
         {
             Symbol *s = new Symbol(); 
-            char *name = strdup((*it)->spelling()); 
+            char *name = strdup((*it)->spelling());
+            auto wut = dynamic_cast<TString *>(p->m_type);
+            if(wut){
+                s->m_string_size = wut->m_primitive->m_data;
+            }
             s->m_basetype = p->m_type->m_attribute.m_basetype; 
             if(!m_st->insert(name, s))
             {

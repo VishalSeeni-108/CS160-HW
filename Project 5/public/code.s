@@ -1,68 +1,80 @@
-digraph G { page="8.5,11"; size="7.5, 10"; 
-"0" -> "1"
-"1" [label="ProgramImpl"]
-"1" -> "2"
-"2" [label="ProcImpl"]
-"2" -> "3"
-"3" [label="SymName\n\"Main\""]
-"2" -> "4"
-"4" [label="TInteger"]
-"2" -> "5"
-"5" [label="ProcedureBlockImpl"]
-"5" -> "6"
-"6" [label="DeclImpl"]
-"6" -> "7"
-"7" [label="SymName\n\"x\""]
-"6" -> "8"
-"8" [label="TInteger"]
-"5" -> "9"
-"9" [label="DeclImpl"]
-"9" -> "10"
-"10" [label="SymName\n\"y\""]
-"9" -> "11"
-"11" [label="TIntPtr"]
-"5" -> "12"
-"12" [label="DeclImpl"]
-"12" -> "13"
-"13" [label="SymName\n\"z\""]
-"12" -> "14"
-"14" [label="TInteger"]
-"5" -> "15"
-"15" [label="Assignment"]
-"15" -> "16"
-"16" [label="Variable"]
-"16" -> "17"
-"17" [label="SymName\n\"x\""]
-"15" -> "18"
-"18" [label="IntLit"]
-"18" -> "19"
-"19" [label="Primitive\n10"]
-"5" -> "20"
-"20" [label="Assignment"]
-"20" -> "21"
-"21" [label="DerefVariable"]
-"21" -> "22"
-"22" [label="SymName\n\"y\""]
-"20" -> "23"
-"23" [label="Ident"]
-"23" -> "24"
-"24" [label="SymName\n\"x\""]
-"5" -> "25"
-"25" [label="Assignment"]
-"25" -> "26"
-"26" [label="Variable"]
-"26" -> "27"
-"27" [label="SymName\n\"z\""]
-"25" -> "28"
-"28" [label="Deref"]
-"28" -> "29"
-"29" [label="Ident"]
-"29" -> "30"
-"30" [label="SymName\n\"y\""]
-"5" -> "31"
-"31" [label="Return"]
-"31" -> "32"
-"32" [label="Ident"]
-"32" -> "33"
-"33" [label="SymName\n\"z\""]
-}
+.text
+
+.globl Main
+Main:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$260, %esp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+.data
+
+string_0:
+.ascii	"test\0"
+.text
+
+	lea	string_0, %eax
+	lea	-256(%ebp), %ebx # size 32901f0 256
+	movb	(%eax), %cl
+	movb	%cl, (%ebx)
+	inc	%eax
+	inc	%ebx
+	movb	(%eax), %cl
+	movb	%cl, (%ebx)
+	inc	%eax
+	inc	%ebx
+	movb	(%eax), %cl
+	movb	%cl, (%ebx)
+	inc	%eax
+	inc	%ebx
+	movb	(%eax), %cl
+	movb	%cl, (%ebx)
+	inc	%eax
+	inc	%ebx
+	movb	(%eax), %cl
+	movb	%cl, (%ebx)
+	inc	%eax
+	inc	%ebx
+	pushl	$0x2
+	popl	%edx
+	xorl	%eax, %eax
+	movb	-4(%ebp, %edx, 4), %al
+	pushl	%eax
+	pushl	$0x73
+	popl	%ebx
+	popl	%eax
+	cmpl	%ebx, %eax
+	je	true_2
+	pushl	$0
+	jmp	end_2
+true_2:
+	pushl	$1
+end_2:
+	popl	%eax
+	cmpl	$1,%eax
+	jne	else_1
+	movl	$-260,%eax
+	pushl	%eax
+	pushl	$0x1
+	popl	%ebx
+	popl	%eax
+	movl %ebx,	(%ebp, %eax, 1)
+	jmp	end_1
+else_1:
+	movl	$-260,%eax
+	pushl	%eax
+	pushl	$0x0
+	popl	%ebx
+	popl	%eax
+	movl %ebx,	(%ebp, %eax, 1)
+end_1:
+	movl	-260(%ebp),%eax
+	pushl	%eax
+	popl	%eax
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	movl	%ebp, %esp
+	popl	%ebp
+	ret

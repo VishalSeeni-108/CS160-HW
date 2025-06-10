@@ -4,6 +4,7 @@
 #include "ast.hpp"
 #include "symtab.hpp"
 #include "primitive.hpp"
+#include <cstring>
 
 
 class Codegen : public Visitor
@@ -532,8 +533,7 @@ class Codegen : public Visitor
         //p->visit_children(this);
         if(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->m_basetype == bt_string)
         {
-            int offset = -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4); 
-            fprintf(m_outputfile, "\tmovl\t%d(%%ebp),%%eax\n", offset);
+            fprintf(m_outputfile, "\tlea\t%d(%%ebp), %%eax\n", m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4);
 
         }
 
@@ -569,7 +569,15 @@ class Codegen : public Visitor
 
     void visitArrayAccess(ArrayAccess* p)
     {
-        p->visit_children(this);
+        SymScope *scope = p->m_attribute.m_scope; 
+        const char *name = p->m_symname->spelling(); 
+        
+        p->visit_children(this); 
+        fprintf(m_outputfile, "\tpopl\t%%edx\n"); 
+
+        fprintf(m_outputfile, "\txorl\t%%eax, %%eax\n");
+        fprintf(m_outputfile, "\tmovb\t%d(%%ebp, %%edx, 4), %%al\n", -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4)); 
+        fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
     }
 
     // LHS
@@ -605,52 +613,59 @@ class Codegen : public Visitor
     void visitStringAssignment(StringAssignment* p)
     {
         //p->visit_children(this);
-        p->m_stringprimitive->accept(this); 
-        fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
-
+        int label_num = new_label(); 
+        //p->visit_children(this);
+        set_data_mode(); 
+        fprintf(m_outputfile, "string_%d:\n", label_num);
+        fprintf(m_outputfile, ".ascii\t\"%s\\0\"\n", p->m_stringprimitive->m_string); 
+        set_text_mode();
         
 
-        p->m_lhs->accept(this);
-        if(Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs))
+        Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs);
+        //assert(get_string_size(scope, name) > m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_size());
+        auto sym = m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling());
+        fprintf(m_outputfile, "\tlea\tstring_%d, %%eax\n", label_num); 
+        fprintf(m_outputfile, "\tlea\t%d(%%ebp), %%ebx # size %x %d\n", -(sym->get_offset() + sym->get_size()),sym, sym->get_size());
+
+        for(int i = 0; i <= strlen(p->m_stringprimitive->m_string); ++i)
         {
-            // if(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->m_string_size < sizeof(p->m_stringprimitive->m_string))
-            // {
-            //     assert(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->m_string_size >= sizeof(p->m_stringprimitive->m_string)); 
-            // }
+            fprintf(m_outputfile, "\tmovb\t(%%eax), %%cl\n");
+            fprintf(m_outputfile, "\tmovb\t%%cl, (%%ebx)\n"); 
+            fprintf(m_outputfile, "\tinc\t%%eax\n");
+            fprintf(m_outputfile, "\tinc\t%%ebx\n"); 
 
-            int offset = -(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset() + 4); 
-            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", offset); //Get offset
-            fprintf(m_outputfile, "\tpushl\t%%eax\n"); //Push onto stack for later
         }
-
-        fprintf(m_outputfile, "\tpopl\t%%eax\n"); //Pull offset back
-        fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value of expression
-        fprintf(m_outputfile, "\tmovl %%ebx,\t(%%ebp, %%eax, 1)\n");
          
     }
 
     void visitStringPrimitive(StringPrimitive* p)
     {
-        int label_num = new_label(); 
-        //p->visit_children(this);
-        set_data_mode(); 
-        fprintf(m_outputfile, "string_%d:\n", label_num);
-        fprintf(m_outputfile, "\t.string \"%s\"\n", p->m_string); 
-        set_text_mode();
-        fprintf(m_outputfile, "\tpushl\t$string_%d\n", label_num); 
         
     }
 
     void visitAbsoluteValue(AbsoluteValue* p)
     {
         int label_num = new_label(); 
-        p->visit_children(this);
-        fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
-        fprintf(m_outputfile, "\tcmpl\t$0,%%eax\n"); 
-        fprintf(m_outputfile, "\tjge\tpositive_%d\n", label_num); 
-        fprintf(m_outputfile, "\tneg\t%%eax\n"); 
-        fprintf(m_outputfile, "positive_%d:\n", label_num); 
-        fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
+        Ident* id = dynamic_cast<Ident*>(p->m_expr); 
+        if(id!=NULL){
+            SymScope *scope = p->m_attribute.m_scope; 
+            Symbol *sym = m_st->lookup(scope, id->m_symname->spelling());
+            if(sym->m_basetype==bt_string)
+            {
+                fprintf(m_outputfile, "\tpushl\t$%d\n", sym->get_size());
+            }
+        }
+        else
+        {
+            p->visit_children(this);
+            fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
+            fprintf(m_outputfile, "\tcmpl\t$0,%%eax\n"); 
+            fprintf(m_outputfile, "\tjge\tpositive_%d\n", label_num); 
+            fprintf(m_outputfile, "\tneg\t%%eax\n"); 
+            fprintf(m_outputfile, "positive_%d:\n", label_num); 
+            fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
+        }
+
     }
 
     // Pointer
@@ -662,9 +677,7 @@ class Codegen : public Visitor
     void visitDeref(Deref* p)
     {
         p->visit_children(this);
-        int offset = -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4); 
-        fprintf(m_outputfile, "\tmovl\t%d(%%ebp),%%eax\n", offset);
-        fprintf(m_outputfile, "\tpushl\t%%eax\n");
+
     }
 };
 
