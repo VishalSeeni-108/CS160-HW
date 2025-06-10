@@ -33,8 +33,8 @@ int main(void)
     SymTab st;      // Symbol Table
     if(ast) {       // Walk over the ast
         dopass_typecheck(ast, &st);
-        // dopass_ast2dot(ast);
-        dopass_codegen(ast, &st);
+        dopass_ast2dot(ast);
+        // dopass_codegen(ast, &st);
     }
 
     return 0;

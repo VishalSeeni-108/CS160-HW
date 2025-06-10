@@ -1,13 +1,11 @@
-procedure proc1(a:integer) return integer {
-    return a; 
-}
-
 procedure Main() return integer {
-    var x:integer;
-    var y: integer; 
+    var x: integer;
+    var y: intptr;  
     var z: integer; 
-   
-    x = proc1(5); 
 
-    return x; 
+    x = 10; 
+    ^y = x; 
+    z = ^y; 
+
+    return z;  
 }

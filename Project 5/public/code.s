@@ -1,46 +1,68 @@
-.text
-
-.globl proc1
-proc1:
-	pushl	%ebp
-	pushl	%ebx
-	pushl	%esi
-	pushl	%edi
-	movl	%esp, %ebp
-	subl	$4,%esp
-	pushl	$0xa
-	popl	%eax
-	movl	%ebp, %esp
-	popl	%edi
-	popl	%esi
-	popl	%ebx
-	popl	%ebp
-	ret
-.globl Main
-Main:
-	pushl	%ebp
-	pushl	%ebx
-	pushl	%esi
-	pushl	%edi
-	movl	%esp, %ebp
-	subl	$12,%esp
-	pushl	$0x5
-	popl	%eax
-	pushl	%eax
-	call	proc1
-	addl $1*4,%esp
-	pushl	%eax
-	movl	$0,%eax
-	pushl	%eax
-	popl	%eax
-	popl	%ebx
-	movl %ebx,	(%ebp, %eax, 1)
-	movl	0(%ebp),%eax
-	pushl	%eax
-	popl	%eax
-	movl	%ebp, %esp
-	popl	%edi
-	popl	%esi
-	popl	%ebx
-	popl	%ebp
-	ret
+digraph G { page="8.5,11"; size="7.5, 10"; 
+"0" -> "1"
+"1" [label="ProgramImpl"]
+"1" -> "2"
+"2" [label="ProcImpl"]
+"2" -> "3"
+"3" [label="SymName\n\"Main\""]
+"2" -> "4"
+"4" [label="TInteger"]
+"2" -> "5"
+"5" [label="ProcedureBlockImpl"]
+"5" -> "6"
+"6" [label="DeclImpl"]
+"6" -> "7"
+"7" [label="SymName\n\"x\""]
+"6" -> "8"
+"8" [label="TInteger"]
+"5" -> "9"
+"9" [label="DeclImpl"]
+"9" -> "10"
+"10" [label="SymName\n\"y\""]
+"9" -> "11"
+"11" [label="TIntPtr"]
+"5" -> "12"
+"12" [label="DeclImpl"]
+"12" -> "13"
+"13" [label="SymName\n\"z\""]
+"12" -> "14"
+"14" [label="TInteger"]
+"5" -> "15"
+"15" [label="Assignment"]
+"15" -> "16"
+"16" [label="Variable"]
+"16" -> "17"
+"17" [label="SymName\n\"x\""]
+"15" -> "18"
+"18" [label="IntLit"]
+"18" -> "19"
+"19" [label="Primitive\n10"]
+"5" -> "20"
+"20" [label="Assignment"]
+"20" -> "21"
+"21" [label="DerefVariable"]
+"21" -> "22"
+"22" [label="SymName\n\"y\""]
+"20" -> "23"
+"23" [label="Ident"]
+"23" -> "24"
+"24" [label="SymName\n\"x\""]
+"5" -> "25"
+"25" [label="Assignment"]
+"25" -> "26"
+"26" [label="Variable"]
+"26" -> "27"
+"27" [label="SymName\n\"z\""]
+"25" -> "28"
+"28" [label="Deref"]
+"28" -> "29"
+"29" [label="Ident"]
+"29" -> "30"
+"30" [label="SymName\n\"y\""]
+"5" -> "31"
+"31" [label="Return"]
+"31" -> "32"
+"32" [label="Ident"]
+"32" -> "33"
+"33" [label="SymName\n\"z\""]
+}

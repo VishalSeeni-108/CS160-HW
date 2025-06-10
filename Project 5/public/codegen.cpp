@@ -135,23 +135,38 @@ class Codegen : public Visitor
         // Declare label
         fprintf(m_outputfile, ".globl %s\n", name->spelling()); 
         fprintf(m_outputfile, "%s:\n", name->spelling()); 
-        //Callee saved registers
-        fprintf(m_outputfile, "\tpushl\t%%ebp\n"); 
-        fprintf(m_outputfile, "\tpushl\t%%ebx\n"); 
-        fprintf(m_outputfile, "\tpushl\t%%esi\n"); 
-        fprintf(m_outputfile, "\tpushl\t%%edi\n"); 
-        //Other setup 
-        fprintf(m_outputfile, "\tmovl\t%%esp, %%ebp\n"); 
-        fprintf(m_outputfile, "\tsubl\t$%d,%%esp\n", size_locals); 
+
+        fprintf(m_outputfile, "\tpushl\t%%ebp\n");              // Save old base pointer
+        fprintf(m_outputfile, "\tmovl\t%%esp, %%ebp\n");        // Set up new base pointer
+
+        
+        if (size_locals > 0) {
+            fprintf(m_outputfile, "\tsubl\t$%u, %%esp\n", size_locals); // Allocate space for locals
+        }
+
+        for(int i = 1; i <= num_args; i++)
+        {
+            fprintf(m_outputfile, "\tpushl\t%d(%%ebp)\n", (4*i+4)); 
+            fprintf(m_outputfile, "\tpopl\t%d(%%ebp)\n", -(4*i)); 
+        }
+
+        // Save callee-saved registers
+        fprintf(m_outputfile, "\tpushl\t%%ebx\n");
+        fprintf(m_outputfile, "\tpushl\t%%esi\n");
+        fprintf(m_outputfile, "\tpushl\t%%edi\n");
     }
 
     void emit_epilogue()
     {
-        fprintf(m_outputfile, "\tmovl\t%%ebp, %%esp\n"); 
+        //fprintf(m_outputfile, "\taddl\t$0, %%esp\n"); //Deallocate local variables
+
+        // Restore callee-saved registers
         fprintf(m_outputfile, "\tpopl\t%%edi\n");
         fprintf(m_outputfile, "\tpopl\t%%esi\n");
         fprintf(m_outputfile, "\tpopl\t%%ebx\n");
-        fprintf(m_outputfile, "\tpopl\t%%ebp\n");
+
+        fprintf(m_outputfile, "\tmovl\t%%ebp, %%esp\n");        // Reset stack
+        fprintf(m_outputfile, "\tpopl\t%%ebp\n");               // Restore base pointer
         fprintf(m_outputfile, "\tret\n"); 
     }
 
@@ -174,7 +189,7 @@ class Codegen : public Visitor
 
     void visitProcImpl(ProcImpl* p)
     {
-        emit_prologue(p->m_symname, m_st->scopesize(p->m_attribute.m_scope), 0); //num args will need to be changed
+        emit_prologue(p->m_symname, m_st->scopesize(p->m_attribute.m_scope), p->m_decl_list->size()); //num args will need to be changed
         p->visit_children(this);
         emit_epilogue(); 
     }
@@ -195,42 +210,59 @@ class Codegen : public Visitor
         p->m_lhs->accept(this);
         if(Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs))
         {
-            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset()); //Get offset
+            int offset = -(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset() + 4); 
+            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", offset); //Get offset
             fprintf(m_outputfile, "\tpushl\t%%eax\n"); //Push onto stack for later
+
+            p->m_expr->accept(this); 
+            fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value of expression
+            fprintf(m_outputfile, "\tpopl\t%%eax\n"); //Pull offset back
+            fprintf(m_outputfile, "\tmovl %%ebx,\t(%%ebp, %%eax, 1)\n");
         }
 
-        p->m_expr->accept(this); 
-        fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value of expression
-        fprintf(m_outputfile, "\tpopl\t%%eax\n"); //Pull offset back
-        fprintf(m_outputfile, "\tmovl %%ebx,\t(%%ebp, %%eax, 1)\n");
+        if(DerefVariable* lhs_var = dynamic_cast<DerefVariable*>(p->m_lhs))
+        {
+            int offset = -(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset() + 4); 
+            fprintf(m_outputfile, "\tmovl %d(%%ebp), %%eax", offset); //Get address stored at offset
+            fprintf(m_outputfile, "\tpushl\t%%eax\n"); //Push onto stack for later
+
+            p->m_expr->accept(this); 
+            fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value of expression
+            fprintf(m_outputfile, "\tpopl\t%%eax\n"); //Pull address back
+            fprintf(m_outputfile, "\tmovl\t%%ebx, (%%eax)"); 
+        }
+
+
     }
 
     void visitCall(Call* p)
     {
         //p->visit_children(this);
-
-
-        for (auto rit = p->m_expr_list->rbegin(); rit != p->m_expr_list->rend(); ++rit) {
-            (*rit)->accept(this);
-            fprintf(m_outputfile, "\tpopl\t%%eax\n");
-            fprintf(m_outputfile, "\tpushl\t%%eax\n");
+        int num_children = 0; 
+        for(auto rit = p->m_expr_list->rbegin(); rit != p->m_expr_list->rend(); ++rit)
+        {
+            (*rit)->accept(this); 
+            fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
+            fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
+            num_children++; 
         }
 
-        fprintf(m_outputfile, "\tcall\t%s\n", p->m_symname->spelling()); //Call method
-        fprintf(m_outputfile, "\taddl $%d*4,%%esp\n",(int)p->m_expr_list->size());
+        fprintf(m_outputfile, "\tcall\t%s\n", p->m_symname->spelling()); 
+        fprintf(m_outputfile, "\taddl\t$%d,%%esp\n", num_children*4);
         //Value of call in eax - push onto stack
         fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
 
-        p->m_lhs->accept(this);
+        p->m_lhs->accept(this); 
         if(Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs))
         {
-            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset()); //Get offset
+            int offset = -(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset() + 4); 
+            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", offset); //Get offset
             fprintf(m_outputfile, "\tpushl\t%%eax\n"); //Push onto stack for later
         }
 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); //Pull offset back
-        fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value back
-        fprintf(m_outputfile, "\tmovl %%ebx,\t(%%ebp, %%eax, 1)\n");
+        fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value of expression
+        fprintf(m_outputfile, "\tmovl %%ebx,\t(%%ebp, %%eax, 1)\n");     
     }
 
     void visitReturn(Return* p)
@@ -244,47 +276,44 @@ class Codegen : public Visitor
     // Control flow
     void visitIfNoElse(IfNoElse* p)
     {
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         //p->visit_children(this);
         p->m_expr->accept(this);
         fprintf(m_outputfile, "\tpopl\t%%eax\n");
         fprintf(m_outputfile, "\tcmpl\t$1,%%eax\n");
-        fprintf(m_outputfile, "\tjne\t end_%d\n", end_label);
+        fprintf(m_outputfile, "\tjne\tend_%d\n", label_num);
         p->m_nested_block->accept(this); 
-        fprintf(m_outputfile, "end_%d: \n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     void visitIfWithElse(IfWithElse* p)
     {
-        int false_label = new_label(); 
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         //p->visit_children(this);
         p->m_expr->accept(this); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t$1,%%eax\n"); 
-        fprintf(m_outputfile, "\tjne\t false_%d\n", false_label);
+        fprintf(m_outputfile, "\tjne\telse_%d\n", label_num);
         p->m_nested_block_1->accept(this); 
-        fprintf(m_outputfile, "\tjmp\t end_%d\n", end_label); 
-        fprintf(m_outputfile, "false_%d: \n", false_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num); 
+        fprintf(m_outputfile, "else_%d:\n", label_num);
         p->m_nested_block_2->accept(this); 
-        fprintf(m_outputfile, "end_%d: \n", end_label);  
+        fprintf(m_outputfile, "end_%d:\n", label_num); 
     }
 
     void visitWhileLoop(WhileLoop* p)
     {
-        int head_label = new_label(); 
-        int tail_label = new_label(); 
         //p->visit_children(this);
-        fprintf(m_outputfile, "head_%d: \n", head_label); 
+        int label_num = new_label(); 
+
+        fprintf(m_outputfile, "while_begin_%d:\n", label_num); 
         p->m_expr->accept(this); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t$1,%%eax\n"); 
-        fprintf(m_outputfile, "\tjne\ttail_%d\n", tail_label); 
+        fprintf(m_outputfile, "\tjne\twhile_end_%d\n", label_num); 
         p->m_nested_block->accept(this); 
-        fprintf(m_outputfile, "\tjmp\thead_%d\n", head_label); 
-        fprintf(m_outputfile, "tail_%d: \n", tail_label); 
+        fprintf(m_outputfile, "\tjmp\twhile_begin_%d\n", label_num); 
+        fprintf(m_outputfile, "while_end_%d:\n", label_num); 
     }
 
     void visitCodeBlock(CodeBlock *p) 
@@ -331,104 +360,92 @@ class Codegen : public Visitor
     // Comparison operations
     void visitCompare(Compare* p)
     {
-        int true_label = new_label(); 
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%ebx\n"); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t%%ebx, %%eax\n");
-        fprintf(m_outputfile, "\tje\ttrue_%d\n", true_label);
+        fprintf(m_outputfile, "\tje\ttrue_%d\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$0\n"); 
-        fprintf(m_outputfile, "\tjmp\tend_%d\n", end_label);
-        fprintf(m_outputfile, "true_%d:\n", true_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num);
+        fprintf(m_outputfile, "true_%d:\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$1\n"); 
-        fprintf(m_outputfile, "end_%d:\n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     void visitNoteq(Noteq* p)
     {
-        int true_label = new_label(); 
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%ebx\n"); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t%%ebx, %%eax\n");
-        fprintf(m_outputfile, "\tjne\ttrue_%d\n", true_label);
+        fprintf(m_outputfile, "\tjne\ttrue_%d\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$0\n"); 
-        fprintf(m_outputfile, "\tjmp\tend_%d\n", end_label);
-        fprintf(m_outputfile, "true_%d:\n", true_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num);
+        fprintf(m_outputfile, "true_%d:\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$1\n"); 
-        fprintf(m_outputfile, "end_%d:\n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     void visitGt(Gt* p)
     {
-        int true_label = new_label(); 
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%ebx\n"); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t%%ebx, %%eax\n");
-        fprintf(m_outputfile, "\tjg\ttrue_%d\n", true_label);
+        fprintf(m_outputfile, "\tjg\ttrue_%d\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$0\n"); 
-        fprintf(m_outputfile, "\tjmp\tend_%d\n", end_label);
-        fprintf(m_outputfile, "true_%d:\n", true_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num);
+        fprintf(m_outputfile, "true_%d:\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$1\n"); 
-        fprintf(m_outputfile, "end_%d:\n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     void visitGteq(Gteq* p)
     {
-        int true_label = new_label(); 
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%ebx\n"); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t%%ebx, %%eax\n");
-        fprintf(m_outputfile, "\tjge\ttrue_%d\n", true_label);
+        fprintf(m_outputfile, "\tjge\ttrue_%d\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$0\n"); 
-        fprintf(m_outputfile, "\tjmp\tend_%d\n", end_label);
-        fprintf(m_outputfile, "true_%d:\n", true_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num);
+        fprintf(m_outputfile, "true_%d:\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$1\n"); 
-        fprintf(m_outputfile, "end_%d:\n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     void visitLt(Lt* p)
     {
-        int true_label = new_label();
-        int end_label = new_label();
-
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%ebx\n"); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t%%ebx, %%eax\n");
-        fprintf(m_outputfile, "\tjl\ttrue_%d\n", true_label);
+        fprintf(m_outputfile, "\tjl\ttrue_%d\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$0\n"); 
-        fprintf(m_outputfile, "\tjmp\tend_%d\n", end_label);
-        fprintf(m_outputfile, "true_%d:\n", true_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num);
+        fprintf(m_outputfile, "true_%d:\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$1\n"); 
-        fprintf(m_outputfile, "end_%d:\n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     void visitLteq(Lteq* p)
     {
-        int true_label = new_label(); 
-        int end_label = new_label(); 
-
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%ebx\n"); 
         fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
         fprintf(m_outputfile, "\tcmpl\t%%ebx, %%eax\n");
-        fprintf(m_outputfile, "\tjle\ttrue_%d\n", true_label);
+        fprintf(m_outputfile, "\tjle\ttrue_%d\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$0\n"); 
-        fprintf(m_outputfile, "\tjmp\tend_%d\n", end_label);
-        fprintf(m_outputfile, "true_%d:\n", true_label);
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num);
+        fprintf(m_outputfile, "true_%d:\n", label_num);
         fprintf(m_outputfile, "\tpushl\t$1\n"); 
-        fprintf(m_outputfile, "end_%d:\n", end_label);
+        fprintf(m_outputfile, "end_%d:\n", label_num);
     }
 
     // Arithmetic and logic operations
@@ -489,10 +506,16 @@ class Codegen : public Visitor
 
     void visitNot(Not* p)
     {
+        int label_num = new_label(); 
         p->visit_children(this);
         fprintf(m_outputfile, "\tpopl\t%%eax\n");
-        fprintf(m_outputfile, "\tnotl\t%%eax\n");
-        fprintf(m_outputfile, "\tpushl\t%%eax\n");
+        fprintf(m_outputfile, "\tcmpl\t$1, %%eax\n");
+        fprintf(m_outputfile, "\tjne\tfalse_%d\n", label_num);
+        fprintf(m_outputfile, "\tpushl\t$0\n"); 
+        fprintf(m_outputfile, "\tjmp\tend_%d\n", label_num); 
+        fprintf(m_outputfile, "false_%d:\n", label_num); 
+        fprintf(m_outputfile, "\tpushl\t$1\n"); 
+        fprintf(m_outputfile, "end_%d:\n", label_num); 
     }
 
     void visitUminus(Uminus* p)
@@ -507,7 +530,15 @@ class Codegen : public Visitor
     void visitIdent(Ident* p)
     {
         //p->visit_children(this);
-        fprintf(m_outputfile, "\tmovl\t%d(%%ebp),%%eax\n", m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset());
+        if(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->m_basetype == bt_string)
+        {
+            int offset = -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4); 
+            fprintf(m_outputfile, "\tmovl\t%d(%%ebp),%%eax\n", offset);
+
+        }
+
+        int offset = -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4); 
+        fprintf(m_outputfile, "\tmovl\t%d(%%ebp),%%eax\n", offset);
         fprintf(m_outputfile, "\tpushl\t%%eax\n");
         
     }
@@ -545,6 +576,8 @@ class Codegen : public Visitor
     void visitVariable(Variable* p)
     {
         p->visit_children(this);
+        // fprintf(m_outputfile, "\tmovl\t%d,%%eax\n", m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset());
+        // fprintf(m_outputfile, "\tpushl\t%%eax\n");
     }
 
     void visitDerefVariable(DerefVariable* p)
@@ -571,17 +604,53 @@ class Codegen : public Visitor
     // Strings
     void visitStringAssignment(StringAssignment* p)
     {
-        p->visit_children(this);
+        //p->visit_children(this);
+        p->m_stringprimitive->accept(this); 
+        fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
+
+        
+
+        p->m_lhs->accept(this);
+        if(Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs))
+        {
+            // if(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->m_string_size < sizeof(p->m_stringprimitive->m_string))
+            // {
+            //     assert(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->m_string_size >= sizeof(p->m_stringprimitive->m_string)); 
+            // }
+
+            int offset = -(m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset() + 4); 
+            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", offset); //Get offset
+            fprintf(m_outputfile, "\tpushl\t%%eax\n"); //Push onto stack for later
+        }
+
+        fprintf(m_outputfile, "\tpopl\t%%eax\n"); //Pull offset back
+        fprintf(m_outputfile, "\tpopl\t%%ebx\n"); //Pull value of expression
+        fprintf(m_outputfile, "\tmovl %%ebx,\t(%%ebp, %%eax, 1)\n");
+         
     }
 
     void visitStringPrimitive(StringPrimitive* p)
     {
+        int label_num = new_label(); 
         //p->visit_children(this);
+        set_data_mode(); 
+        fprintf(m_outputfile, "string_%d:\n", label_num);
+        fprintf(m_outputfile, "\t.string \"%s\"\n", p->m_string); 
+        set_text_mode();
+        fprintf(m_outputfile, "\tpushl\t$string_%d\n", label_num); 
+        
     }
 
     void visitAbsoluteValue(AbsoluteValue* p)
     {
+        int label_num = new_label(); 
         p->visit_children(this);
+        fprintf(m_outputfile, "\tpopl\t%%eax\n"); 
+        fprintf(m_outputfile, "\tcmpl\t$0,%%eax\n"); 
+        fprintf(m_outputfile, "\tjge\tpositive_%d\n", label_num); 
+        fprintf(m_outputfile, "\tneg\t%%eax\n"); 
+        fprintf(m_outputfile, "positive_%d:\n", label_num); 
+        fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
     }
 
     // Pointer
@@ -593,6 +662,9 @@ class Codegen : public Visitor
     void visitDeref(Deref* p)
     {
         p->visit_children(this);
+        int offset = -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4); 
+        fprintf(m_outputfile, "\tmovl\t%d(%%ebp),%%eax\n", offset);
+        fprintf(m_outputfile, "\tpushl\t%%eax\n");
     }
 };
 
