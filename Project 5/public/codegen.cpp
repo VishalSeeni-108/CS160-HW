@@ -571,13 +571,15 @@ class Codegen : public Visitor
     {
         SymScope *scope = p->m_attribute.m_scope; 
         const char *name = p->m_symname->spelling(); 
-        
+        fprintf(m_outputfile, "#Accessing array element\n");
         p->visit_children(this); 
-        fprintf(m_outputfile, "\tpopl\t%%edx\n"); 
-
-        fprintf(m_outputfile, "\txorl\t%%eax, %%eax\n");
-        fprintf(m_outputfile, "\tmovb\t%d(%%ebp, %%edx, 4), %%al\n", -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4)); 
-        fprintf(m_outputfile, "\tpushl\t%%eax\n"); 
+        fprintf(m_outputfile, "\tpopl\t%%edx\n"); //Index value 
+        fprintf(m_outputfile, "\timull\t$4,%%edx\n"); //Multiply index by 4
+        int offset = -(m_st->lookup(p->m_attribute.m_scope, p->m_symname->spelling())->get_offset() + 4); 
+        fprintf(m_outputfile, "\tmovl\t$%d,%%ebx\n", offset); 
+        fprintf(m_outputfile, "\taddl\t%%edx,%%ebx\n"); //Add index value to offset
+        fprintf(m_outputfile, "\tmovl\t(%%ebx,%%ebp,1),%%eax\n");
+        fprintf(m_outputfile, "\tpushl\t%%eax\n");
     }
 
     // LHS
@@ -615,27 +617,28 @@ class Codegen : public Visitor
         //p->visit_children(this);
         int label_num = new_label(); 
         //p->visit_children(this);
-        set_data_mode(); 
-        fprintf(m_outputfile, "string_%d:\n", label_num);
-        fprintf(m_outputfile, ".ascii\t\"%s\\0\"\n", p->m_stringprimitive->m_string); 
-        set_text_mode();
-        
 
-        Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs);
-        //assert(get_string_size(scope, name) > m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_size());
-        auto sym = m_st->lookup(lhs_var->m_attribute.m_scope, lhs_var->m_symname->spelling());
-        fprintf(m_outputfile, "\tlea\tstring_%d, %%eax\n", label_num); 
-        fprintf(m_outputfile, "\tlea\t%d(%%ebp), %%ebx # size %x %d\n", -(sym->get_offset() + sym->get_size()),sym, sym->get_size());
-
-        for(int i = 0; i <= strlen(p->m_stringprimitive->m_string); ++i)
+        if(Variable* lhs_var = dynamic_cast<Variable*>(p->m_lhs))
         {
-            fprintf(m_outputfile, "\tmovb\t(%%eax), %%cl\n");
-            fprintf(m_outputfile, "\tmovb\t%%cl, (%%ebx)\n"); 
-            fprintf(m_outputfile, "\tinc\t%%eax\n");
-            fprintf(m_outputfile, "\tinc\t%%ebx\n"); 
-
+            int offset = -(m_st->lookup(p->m_attribute.m_scope, lhs_var->m_symname->spelling())->get_offset() + 4); 
+            fprintf(m_outputfile, "\tmovl\t$%d,%%eax\n", offset); //Get offset
+            for(int i = 0; i <= strlen(p->m_stringprimitive->m_string); ++i)
+            {
+                if(p->m_stringprimitive->m_string[i] == '\0')
+                {
+                    fprintf(m_outputfile, "#Storing \\0\n");
+                    fprintf(m_outputfile, "\tmovl\t0x0,%%ebx\n"); 
+                    fprintf(m_outputfile, "\tmovl\t%%ebx,\t(%%ebp, %%eax, 1)\n"); 
+                }
+                else
+                {
+                    fprintf(m_outputfile, "#Storing %c\n", p->m_stringprimitive->m_string[i]);
+                    fprintf(m_outputfile, "\tmovl\t$%i,%%ebx\n", p->m_stringprimitive->m_string[i]); 
+                    fprintf(m_outputfile, "\tmovl\t%%ebx,\t(%%ebp, %%eax, 1)\n"); 
+                    fprintf(m_outputfile, "\tsubl\t$4,%%eax\n"); 
+                }
+            }
         }
-         
     }
 
     void visitStringPrimitive(StringPrimitive* p)

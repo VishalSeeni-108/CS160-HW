@@ -3,15 +3,7 @@ procedure Main() return integer {
     var y: integer; 
     
     x="test";
-
-    if(x[2] == 's')
-    {
-        y = 1; 
-    }
-    else
-    {
-        y = 0; 
-    }
+    y = |x|; 
 
     return y;  
 

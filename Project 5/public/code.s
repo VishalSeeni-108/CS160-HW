@@ -1,75 +1,33 @@
-.text
+.text
 
 .globl Main
 Main:
 	pushl	%ebp
 	movl	%esp, %ebp
-	subl	$260, %esp
 	pushl	%ebx
 	pushl	%esi
 	pushl	%edi
+	subl	$1024, %esp
 .data
-
-string_0:
-.ascii	"test\0"
+String0:
+    .asciz "test"
 .text
-
-	lea	string_0, %eax
-	lea	-256(%ebp), %ebx # size 32901f0 256
-	movb	(%eax), %cl
-	movb	%cl, (%ebx)
-	inc	%eax
-	inc	%ebx
-	movb	(%eax), %cl
-	movb	%cl, (%ebx)
-	inc	%eax
-	inc	%ebx
-	movb	(%eax), %cl
-	movb	%cl, (%ebx)
-	inc	%eax
-	inc	%ebx
-	movb	(%eax), %cl
-	movb	%cl, (%ebx)
-	inc	%eax
-	inc	%ebx
-	movb	(%eax), %cl
-	movb	%cl, (%ebx)
-	inc	%eax
-	inc	%ebx
-	pushl	$0x2
-	popl	%edx
-	xorl	%eax, %eax
-	movb	-4(%ebp, %edx, 4), %al
+    leal String0, %eax
+    movzbl 0(%eax), %ebx
+    movl   %ebx, -4(%ebp)
+    movzbl 1(%eax), %ebx
+    movl   %ebx, -8(%ebp)
+    movzbl 2(%eax), %ebx
+    movl   %ebx, -12(%ebp)
+    movzbl 3(%eax), %ebx
+    movl   %ebx, -16(%ebp)
+	movl	$-1024,%eax
 	pushl	%eax
-	pushl	$0x73
-	popl	%ebx
-	popl	%eax
-	cmpl	%ebx, %eax
-	je	true_2
-	pushl	$0
-	jmp	end_2
-true_2:
-	pushl	$1
-end_2:
-	popl	%eax
-	cmpl	$1,%eax
-	jne	else_1
-	movl	$-260,%eax
-	pushl	%eax
-	pushl	$0x1
+   pushl $255
 	popl	%ebx
 	popl	%eax
 	movl %ebx,	(%ebp, %eax, 1)
-	jmp	end_1
-else_1:
-	movl	$-260,%eax
-	pushl	%eax
-	pushl	$0x0
-	popl	%ebx
-	popl	%eax
-	movl %ebx,	(%ebp, %eax, 1)
-end_1:
-	movl	-260(%ebp),%eax
+	movl	-1024(%ebp),%eax
 	pushl	%eax
 	popl	%eax
 	popl	%edi

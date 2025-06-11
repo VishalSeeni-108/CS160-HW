@@ -88,7 +88,7 @@ class Symbol
         case bt_procedure:
             return(0);
         case bt_string:
-            return (m_string_size/4)*4+ (m_string_size % 4?4:0);
+            return m_string_size*4;
         case bt_ptr:
             return(4);
         case bt_charptr:
